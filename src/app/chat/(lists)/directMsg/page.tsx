@@ -2,18 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { ActionPopover } from "@/components/ActionPopover";
+import { useChatStore } from "@/components/ChatStore";
 import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
-import { DM_CONVERSATIONS, ME } from "@/lib/sample-data";
 
 export default function DirectMessagesPage() {
   const router = useRouter();
+  const { me, dmMessages, unread, isBlocked } = useChatStore();
+
+  // One row per person you've chatted with, newest first. Blocked people are left out.
+  const conversations = Object.entries(dmMessages)
+    .filter(([username, messages]) => messages.length > 0 && username !== me && !isBlocked(username))
+    .map(([username, messages]) => ({ username, last: messages[messages.length - 1] }));
 
   function startConversation(input: string) {
     const username = input.replace(/^@/, "");
     if (!/^[A-Za-z0-9_]{3,32}$/.test(username)) return "Use 3–32 letters, numbers or underscores.";
-    if (username === ME) return "You can't message yourself.";
+    if (username === me) return "You can't message yourself.";
+    if (isBlocked(username)) return `You blocked @${username}. Unblock them first.`;
     router.push(`/chat/directMsg/${username}`);
   }
 
@@ -34,16 +41,18 @@ export default function DirectMessagesPage() {
       />
 
       <div className="p-6">
-        {DM_CONVERSATIONS.length === 0 ? (
-          <StateView title="No conversations yet" description="Messages you send or receive will show up here." />
+        {conversations.length === 0 ? (
+          <StateView title="No conversations yet" description="Start one with “+ New message”." />
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {DM_CONVERSATIONS.map((dm) => (
+            {conversations.map(({ username, last }) => (
               <ListRow
-                key={dm.username}
-                href={`/chat/directMsg/${dm.username}`}
-                title={`@${dm.username}`}
-                subtitle={`${dm.last_message} · ${dm.time}`}
+                key={username}
+                href={`/chat/directMsg/${username}`}
+                title={`@${username}`}
+                // Your own last message starts with "You:"
+                subtitle={`${last.sender === me ? "You: " : ""}${last.body} · ${last.time}`}
+                badge={unread[username]}
               />
             ))}
           </ul>

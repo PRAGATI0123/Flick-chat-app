@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Button } from "./Button";
 import { Input } from "./Input";
 
@@ -17,11 +17,24 @@ type ActionPopoverProps = {
 
 /**
  * A button that opens a small box with one text field when you hover over it
- * or click it. The box stays open while you hover it or while you are typing in it.
+ * or click it. The box stays open while you type in it, and closes after it worked,
+ * when the mouse leaves, when you click somewhere else, or on Escape.
  */
 export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmit }: ActionPopoverProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  function close() {
+    setOpen(false);
+    setError(null);
+  }
+
+  /** Is the cursor (keyboard focus) inside this box? Then don't close on mouse leave. */
+  function focusIsInside() {
+    return !!containerRef.current?.contains(document.activeElement);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); // stop the browser from reloading the page
@@ -36,34 +49,46 @@ export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmi
       return;
     }
     setValue("");
-    setError(null);
-    // Take focus out of the box so it closes once the mouse leaves.
+    close();
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   }
 
   return (
-    <div className="group relative">
-      <Button>{label}</Button>
-      {/* Hidden until hover (group-hover) or focus inside (group-focus-within). pt-2 keeps hover alive in the gap. */}
-      <div className="absolute right-0 top-full z-20 hidden pt-2 group-focus-within:block group-hover:block">
-        <form
-          onSubmit={handleSubmit}
-          className="flex w-72 flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-lg"
-        >
-          <Input
-            prefix={prefix}
-            placeholder={placeholder}
-            autoComplete="off"
-            value={value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              setError(null);
-            }}
-          />
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <Button type="submit">{submitLabel}</Button>
-        </form>
-      </div>
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => !focusIsInside() && close()}
+      // Focus moved somewhere outside the box (e.g. you clicked elsewhere): close it.
+      onBlur={(event) => !containerRef.current?.contains(event.relatedTarget) && close()}
+      onKeyDown={(event) => event.key === "Escape" && close()}
+    >
+      <Button onClick={() => setOpen((isOpen) => !isOpen)} aria-expanded={open}>
+        {label}
+      </Button>
+
+      {open && (
+        // pt-2 is an invisible gap, so the mouse can move from the button to the box without closing it
+        <div className="absolute right-0 top-full z-20 pt-2">
+          <form
+            onSubmit={handleSubmit}
+            className="flex w-72 flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-lg"
+          >
+            <Input
+              prefix={prefix}
+              placeholder={placeholder}
+              autoComplete="off"
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+                setError(null);
+              }}
+            />
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <Button type="submit">{submitLabel}</Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

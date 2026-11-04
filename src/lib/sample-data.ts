@@ -25,12 +25,8 @@ export const ROOM_MESSAGES: Record<string, Message[]> = {
   "3": [{ id: 1, sender: "user_3", body: "Random thought: chai > coffee ☕", time: "08:45" }],
 };
 
-export const DM_CONVERSATIONS = [
-  { username: "cool_panda_42", last_message: "see you tomorrow!", time: "11:02" },
-  { username: "user_2", last_message: "thanks for the help", time: "Yesterday" },
-];
-
 // Messages for each DM conversation, by the other person's username.
+// The DM list is built from this: newest conversation first, last message as the preview.
 export const DM_MESSAGES: Record<string, Message[]> = {
   cool_panda_42: [
     { id: 1, sender: "cool_panda_42", body: "hi!", time: "10:58" },
@@ -43,5 +39,8 @@ export const DM_MESSAGES: Record<string, Message[]> = {
     { id: 2, sender: "user_2", body: "thanks for the help", time: "18:41" },
   ],
 };
+
+// How many DMs from each person you haven't read yet (shown as a badge).
+export const UNREAD: Record<string, number> = { cool_panda_42: 2 };
 
 export const BLOCKED_USERS = [{ username: "user_4", blocked_at: "Today, 08:00" }];

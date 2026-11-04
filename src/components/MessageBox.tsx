@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
 import { Avatar } from "./Avatar";
 
 type MessageBoxProps = {
@@ -6,47 +8,63 @@ type MessageBoxProps = {
   body: string;
   time: string;
   mine?: boolean;
+  /** false for the 2nd, 3rd… message in a row from the same person: no name/avatar again. */
+  showHeader?: boolean;
+  /** Called when the @username is clicked. */
+  onUserClick?: (username: string) => void;
 };
 
-export function MessageBox({ sender, body, time, mine = false }: MessageBoxProps) {
+export function MessageBox({ sender, body, time, mine = false, showHeader = true, onUserClick }: MessageBoxProps) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(body);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Copying can be blocked by the browser; nothing else to do.
+    }
+  }
+
   return (
-    <div className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
-      {!mine && <Avatar name={sender} size="sm" />}
+    // "group": the Copy/time bit appears when the mouse is over this message
+    <div className={`group flex items-end gap-2 ${mine ? "flex-row-reverse" : ""} ${showHeader ? "" : "-mt-3"}`}>
+      {/* Avatar only on the first message of a group; an empty box keeps the bubbles lined up */}
+      {!mine && (showHeader ? <Avatar name={sender} size="sm" /> : <span className="size-8 shrink-0" />)}
+
       <div className={`flex max-w-[75%] flex-col gap-1 ${mine ? "items-end" : "items-start"}`}>
-        <div className="flex items-center gap-1 text-xs text-muted">
-          {mine ? "You" : <UserMenu username={sender} />}
-          <span>· {time}</span>
-        </div>
+        {showHeader && (
+          <div className="flex items-center gap-1 text-xs text-muted">
+            {mine ? (
+              "You"
+            ) : (
+              <button
+                type="button"
+                onClick={() => onUserClick?.(sender)}
+                className="font-medium hover:text-foreground hover:underline"
+              >
+                @{sender}
+              </button>
+            )}
+            <span>· {time}</span>
+          </div>
+        )}
         <p
-          className={`rounded-2xl px-4 py-2 text-sm ${
+          className={`rounded-2xl px-4 py-2 text-sm break-words ${
             mine ? "bg-accent text-white" : "border border-border bg-surface"
           }`}
         >
           {body}
         </p>
       </div>
-    </div>
-  );
-}
 
-/** "@username" that shows Direct message / Block when you hover over it or click it. */
-function UserMenu({ username }: { username: string }) {
-  return (
-    <div className="group relative">
-      <button type="button" className="font-medium hover:text-foreground hover:underline">
-        @{username}
-      </button>
-      {/* Hidden until hover or click (focus). pt-1 keeps hover alive in the gap. */}
-      <div className="absolute left-0 top-full z-20 hidden pt-1 group-focus-within:block group-hover:block">
-        <div className="flex w-44 flex-col rounded-lg border border-border bg-surface p-1 text-sm text-foreground shadow-lg">
-          <Link href={`/chat/directMsg/${username}`} className="rounded-md px-3 py-2 hover:bg-surface-muted">
-            Direct message
-          </Link>
-          {/* Blocking needs the API, so this button doesn't do anything yet. */}
-          <button type="button" className="rounded-md px-3 py-2 text-left text-red-500 hover:bg-surface-muted">
-            Block
-          </button>
-        </div>
+      {/* Shown on hover (or keyboard focus): time for grouped messages + Copy */}
+      <div className="flex items-center gap-2 self-center text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        {!showHeader && <span>{time}</span>}
+        <button type="button" onClick={copy} className="rounded px-1.5 py-0.5 hover:bg-surface-muted hover:text-foreground">
+          {copied ? "Copied!" : "Copy"}
+        </button>
       </div>
     </div>
   );

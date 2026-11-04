@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+/* `dark:` classes apply when <html data-theme="dark"> (set by the theme switch). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Light colours (default) */
 :root {
+  color-scheme: light;
   --background: #f7f7f8;
   --surface: #ffffff;
   --surface-muted: #f1f1f3;
@@ -10,8 +15,22 @@
   --accent: #4f46e5;
 }
 
+/* Dark colours: chosen with the switch… */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b0b0e;
+  --surface: #141418;
+  --surface-muted: #1c1c22;
+  --foreground: #ededf0;
+  --muted: #9a9aa6;
+  --border: #2a2a31;
+  --accent: #6366f1;
+}
+
+/* …or, if nothing was chosen yet and JavaScript is off, follow the computer's setting. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --background: #0b0b0e;
     --surface: #141418;
     --surface-muted: #1c1c22;

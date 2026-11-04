@@ -3,30 +3,43 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
+import { useChatStore } from "./ChatStore";
 
 export type NavLink = { href: string; label: string; className?: string };
 
-type NavItemProps = NavLink & { active?: boolean };
+// Same look for menu links and menu buttons (Log out, theme switch).
+export const NAV_ITEM_CLASS = "flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium";
 
-export function NavItem({ href, label, active = false, className = "" }: NavItemProps) {
+type NavItemProps = NavLink & { active?: boolean; badge?: number };
+
+export function NavItem({ href, label, active = false, badge, className = "" }: NavItemProps) {
   return (
     <Link
       href={href}
-      className={`rounded-lg px-3 py-2 text-sm font-medium ${
+      className={`${NAV_ITEM_CLASS} ${
         active ? "bg-surface-muted text-foreground" : "text-muted hover:text-foreground"
       } ${className}`}
     >
       {label}
+      {!!badge && (
+        <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-xs leading-none text-white">{badge}</span>
+      )}
     </Link>
   );
 }
 
 function NavLinks({ links, pathname }: { links: NavLink[]; pathname?: string }) {
+  const { unreadTotal } = useChatStore();
+
   return (
     <nav className="flex flex-wrap gap-1 md:flex-col">
       {links.map((link) => (
-        // "/" is Log out, which is never the current page.
-        <NavItem key={link.href} {...link} active={link.href !== "/" && !!pathname?.startsWith(link.href)} />
+        <NavItem
+          key={link.href}
+          {...link}
+          active={!!pathname?.startsWith(link.href)}
+          badge={link.href === "/chat/directMsg" ? unreadTotal : undefined}
+        />
       ))}
     </nav>
   );
