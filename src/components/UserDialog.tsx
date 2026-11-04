@@ -7,6 +7,7 @@ import { Button } from "./Button";
 import { useChatStore } from "./ChatStore";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Modal } from "./Modal";
+import { useToast } from "./Toast";
 
 /**
  * Opens when you click a username in a chat: "Direct message" or "Block".
@@ -14,7 +15,8 @@ import { Modal } from "./Modal";
  */
 export function UserDialog({ username, onClose }: { username: string; onClose: () => void }) {
   const router = useRouter();
-  const { block } = useChatStore();
+  const { block, unblock } = useChatStore();
+  const showToast = useToast();
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
   if (confirmingBlock) {
@@ -23,6 +25,7 @@ export function UserDialog({ username, onClose }: { username: string; onClose: (
         username={username}
         onConfirm={() => {
           block(username);
+          showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
           onClose();
         }}
         onCancel={onClose}

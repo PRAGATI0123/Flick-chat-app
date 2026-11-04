@@ -57,13 +57,15 @@ export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmi
     <div
       ref={containerRef}
       className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => !focusIsInside() && close()}
+      // Hover only for a real mouse: on phones a tap would "hover" and then "click" (= open + close).
+      onPointerEnter={(event) => event.pointerType === "mouse" && setOpen(true)}
+      onPointerLeave={(event) => event.pointerType === "mouse" && !focusIsInside() && close()}
       // Focus moved somewhere outside the box (e.g. you clicked elsewhere): close it.
       onBlur={(event) => !containerRef.current?.contains(event.relatedTarget) && close()}
       onKeyDown={(event) => event.key === "Escape" && close()}
     >
-      <Button onClick={() => setOpen((isOpen) => !isOpen)} aria-expanded={open}>
+      {/* Click always opens (hover may have opened it already, so a toggle would close it again). */}
+      <Button onClick={() => setOpen(true)} aria-expanded={open}>
         {label}
       </Button>
 

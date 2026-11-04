@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 type PageHeaderProps = {
@@ -5,16 +6,28 @@ type PageHeaderProps = {
   description?: string;
   /** Optional button(s) shown on the right. */
   action?: ReactNode;
+  /** Shows a "←" back link on phones (desktop has the sidebar instead). */
+  backHref?: string;
 };
 
-export function PageHeader({ title, description, action }: PageHeaderProps) {
+export function PageHeader({ title, description, action, backHref }: PageHeaderProps) {
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-5">
-      <div>
-        <h1 className="text-xl font-semibold">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+    <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:px-6 md:py-5">
+      {backHref && (
+        <Link
+          href={backHref}
+          aria-label="Back"
+          className="-ml-2 grid size-9 shrink-0 place-items-center rounded-lg text-lg text-muted hover:bg-surface-muted hover:text-foreground md:hidden"
+        >
+          ←
+        </Link>
+      )}
+      {/* min-w-0 + truncate: long names get "…" instead of pushing things off screen */}
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-lg font-semibold md:text-xl">{title}</h1>
+        {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </header>
   );
 }

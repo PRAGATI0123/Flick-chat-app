@@ -21,7 +21,11 @@ export function Composer({ placeholder = "Write a message…", onSend }: Compose
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 border-t border-border bg-surface p-4">
+    // pb-[…safe-area…]: on iPhones, stay above the home bar at the bottom of the screen
+    <form
+      onSubmit={handleSubmit}
+      className="flex gap-2 border-t border-border bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4"
+    >
       <Input
         name="body"
         placeholder={placeholder}

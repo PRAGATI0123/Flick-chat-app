@@ -5,15 +5,22 @@ import { Button } from "@/components/Button";
 import { useChatStore } from "@/components/ChatStore";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
+import { useToast } from "@/components/Toast";
 
 export default function BlockedUsersPage() {
-  const { blocked, unblock } = useChatStore();
+  const { blocked, block, unblock } = useChatStore();
+  const showToast = useToast();
+
+  function handleUnblock(username: string) {
+    unblock(username); // their old and new messages show up again right away
+    showToast({ message: `@${username} unblocked`, actionLabel: "Undo", onAction: () => block(username) });
+  }
 
   return (
     <>
       <PageHeader title="Blocked users" description="You won't see messages from these users." />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {blocked.length === 0 ? (
           <StateView title="No blocked users" description="People you block will appear here." />
         ) : (
@@ -21,12 +28,11 @@ export default function BlockedUsersPage() {
             {blocked.map((user) => (
               <li key={user.username} className="flex items-center gap-3 px-4 py-3">
                 <Avatar name={user.username} />
-                <span className="flex flex-1 flex-col">
-                  <span className="font-medium">@{user.username}</span>
-                  <span className="text-sm text-muted">Blocked {user.blocked_at}</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">@{user.username}</span>
+                  <span className="truncate text-sm text-muted">Blocked {user.blocked_at}</span>
                 </span>
-                {/* Their old and new messages show up again right away. */}
-                <Button variant="secondary" onClick={() => unblock(user.username)}>
+                <Button variant="secondary" onClick={() => handleUnblock(user.username)}>
                   Unblock
                 </Button>
               </li>

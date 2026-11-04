@@ -19,7 +19,7 @@ import {
  * When the API is wired up, these functions will call the server instead.
  */
 
-type Room = { id: number; name: string; created_by: string };
+export type Room = { id: number; name: string; created_by: string };
 type BlockedUser = { username: string; blocked_at: string };
 
 type ChatStore = {
@@ -34,6 +34,7 @@ type ChatStore = {
   /** Returns an error message, or nothing if it worked. */
   createRoom: (name: string) => string | void;
   deleteRoom: (id: number) => void;
+  restoreRoom: (room: Room, messages: Message[], index: number) => void;
   sendToRoom: (roomId: string, body: string) => void;
   sendDm: (username: string, body: string) => void;
   block: (username: string) => void;
@@ -49,7 +50,7 @@ function nowTime() {
 }
 
 function newMessage(list: Message[] | undefined, body: string): Message {
-  return { id: (list?.at(-1)?.id ?? 0) + 1, sender: ME, body, time: nowTime() };
+  return { id: (list?.at(-1)?.id ?? 0) + 1, sender: ME, body, day: "Today", time: nowTime() };
 }
 
 export function ChatStoreProvider({ children }: { children: ReactNode }) {
@@ -112,9 +113,19 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
       });
     },
 
+    restoreRoom(room, messages, index) {
+      // Put it back where it was (used by "Undo" after deleting).
+      setRooms((current) => [...current.slice(0, index), room, ...current.slice(index)]);
+      setRoomMessages((current) => ({ ...current, [String(room.id)]: messages }));
+    },
+
     block(username) {
-      if (isBlocked(username)) return;
-      setBlocked((current) => [...current, { username, blocked_at: `Today, ${nowTime()}` }]);
+      // Check inside the update, so it also works when called later (e.g. from "Undo").
+      setBlocked((current) =>
+        current.some((b) => b.username === username)
+          ? current
+          : [...current, { username, blocked_at: `Today, ${nowTime()}` }],
+      );
     },
 
     unblock(username) {

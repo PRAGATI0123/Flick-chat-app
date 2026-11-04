@@ -2,16 +2,43 @@
 
 import { useState } from "react";
 import { ActionPopover } from "@/components/ActionPopover";
-import { useChatStore } from "@/components/ChatStore";
+import { useChatStore, type Room } from "@/components/ChatStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Input } from "@/components/Input";
 import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
+import { useToast } from "@/components/Toast";
+import { matches, preview, shortWhen } from "@/lib/format";
 
 export default function RoomsPage() {
-  const { me, rooms, createRoom, deleteRoom } = useChatStore();
+  const { me, rooms, roomMessages, isBlocked, createRoom, deleteRoom, restoreRoom } = useChatStore();
+  const showToast = useToast();
+  const [query, setQuery] = useState("");
   // The room waiting for "are you sure?" (null = no popup).
-  const [roomToDelete, setRoomToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+
+  const visibleRooms = rooms.filter((room) => matches(room.name, query));
+
+  function handleCreate(name: string) {
+    const problem = createRoom(name);
+    if (problem) return problem;
+    setQuery("");
+    showToast({ message: `Room #${name} created` });
+  }
+
+  function handleDelete(room: Room) {
+    // Remember the room, its messages and its place in the list, so "Undo" can put it back.
+    const index = rooms.findIndex((r) => r.id === room.id);
+    const messages = roomMessages[String(room.id)] ?? [];
+    deleteRoom(room.id);
+    setRoomToDelete(null);
+    showToast({
+      message: `Room #${room.name} deleted`,
+      actionLabel: "Undo",
+      onAction: () => restoreRoom(room, messages, index),
+    });
+  }
 
   return (
     <>
@@ -20,36 +47,51 @@ export default function RoomsPage() {
         description="Rooms with no new messages for 24 hours are removed automatically."
         action={
           <ActionPopover
-            label="+ Create room"
+            label="+ Create"
             prefix="#"
             placeholder="Room name"
-            submitLabel="Create"
-            onSubmit={createRoom}
+            submitLabel="Create room"
+            onSubmit={handleCreate}
           />
         }
       />
 
-      <div className="p-6">
+      <div className="flex flex-col gap-3 p-4 md:p-6">
+        {rooms.length > 0 && (
+          <Input
+            type="search"
+            aria-label="Search rooms"
+            placeholder="Search rooms…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        )}
+
         {rooms.length === 0 ? (
-          <StateView title="No rooms yet" description="Create the first one with “+ Create room”." />
+          <StateView title="No rooms yet" description="Create the first one with “+ Create”." />
+        ) : visibleRooms.length === 0 ? (
+          <StateView title="No rooms found" description={`No room name contains “${query.trim()}”.`} />
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {rooms.map((room) => {
+            {visibleRooms.map((room) => {
               const mine = room.created_by === me;
+              // Last message you can see (blocked users' messages are hidden).
+              const last = (roomMessages[String(room.id)] ?? []).filter((m) => !isBlocked(m.sender)).at(-1);
               return (
                 <ListRow
                   key={room.id}
                   href={`/chat/rooms/${room.id}`}
                   icon="#"
                   title={room.name}
-                  subtitle={mine ? "Created by you" : `Created by @${room.created_by}`}
+                  subtitle={last ? preview(last, me, true) : mine ? "Created by you · no messages yet" : "No messages yet"}
+                  meta={last ? shortWhen(last) : undefined}
                   // Only the person who created a room can delete it.
                   action={
                     mine && (
                       <button
                         type="button"
                         onClick={() => setRoomToDelete(room)}
-                        className="rounded-lg px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
+                        className="rounded-lg px-2.5 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
                       >
                         Delete
                       </button>
@@ -65,12 +107,9 @@ export default function RoomsPage() {
       {roomToDelete && (
         <ConfirmDialog
           title={`Delete #${roomToDelete.name}?`}
-          message="The room and all of its messages will be deleted for everyone. This can't be undone."
+          message="The room and all of its messages will be deleted for everyone."
           confirmLabel="Delete room"
-          onConfirm={() => {
-            deleteRoom(roomToDelete.id);
-            setRoomToDelete(null);
-          }}
+          onConfirm={() => handleDelete(roomToDelete)}
           onCancel={() => setRoomToDelete(null)}
         />
       )}

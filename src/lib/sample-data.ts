@@ -1,6 +1,8 @@
 // Placeholder data for the UI until the API is wired up.
 
-export type Message = { id: number; sender: string; body: string; time: string };
+// `day` is shown as a date line in the chat ("Yesterday", "Today").
+// The real API gives a full timestamp (created_at); the day and time will be worked out from it.
+export type Message = { id: number; sender: string; body: string; day: string; time: string };
 
 export const ME = "pragati_123";
 
@@ -13,30 +15,30 @@ export const ROOMS = [
 // Messages for each room, by room id.
 export const ROOM_MESSAGES: Record<string, Message[]> = {
   "1": [
-    { id: 1, sender: "cool_panda_42", body: "hey everyone!", time: "10:20" },
-    { id: 2, sender: "user_2", body: "Hi!......", time: "10:22" },
-    { id: 3, sender: ME, body: "Yeahhhh", time: "10:23" },
-    { id: 4, sender: "user_3", body: "Nice", time: "10:25" },
+    { id: 1, sender: "cool_panda_42", body: "hey everyone!", day: "Yesterday", time: "22:40" },
+    { id: 2, sender: "user_2", body: "Hi!......", day: "Yesterday", time: "22:42" },
+    { id: 3, sender: ME, body: "Yeahhhh", day: "Today", time: "10:23" },
+    { id: 4, sender: "user_3", body: "Nice", day: "Today", time: "10:25" },
   ],
   "2": [
-    { id: 1, sender: "user_2", body: "Anyone tried the new Next.js version?", time: "09:10" },
-    { id: 2, sender: ME, body: "Yes, using it for this chat app!", time: "09:12" },
+    { id: 1, sender: "user_2", body: "Anyone tried the new Next.js version?", day: "Today", time: "09:10" },
+    { id: 2, sender: ME, body: "Yes, using it for this chat app!", day: "Today", time: "09:12" },
   ],
-  "3": [{ id: 1, sender: "user_3", body: "Random thought: chai > coffee ☕", time: "08:45" }],
+  "3": [{ id: 1, sender: "user_3", body: "Random thought: chai > coffee ☕", day: "Yesterday", time: "08:45" }],
 };
 
 // Messages for each DM conversation, by the other person's username.
 // The DM list is built from this: newest conversation first, last message as the preview.
 export const DM_MESSAGES: Record<string, Message[]> = {
   cool_panda_42: [
-    { id: 1, sender: "cool_panda_42", body: "hi!", time: "10:58" },
-    { id: 2, sender: ME, body: "hey?", time: "11:00" },
-    { id: 3, sender: "cool_panda_42", body: "what's up?", time: "11:01" },
-    { id: 4, sender: "cool_panda_42", body: "see you!", time: "11:02" },
+    { id: 1, sender: "cool_panda_42", body: "hi!", day: "Yesterday", time: "21:58" },
+    { id: 2, sender: ME, body: "hey?", day: "Yesterday", time: "22:00" },
+    { id: 3, sender: "cool_panda_42", body: "what's up?", day: "Today", time: "11:01" },
+    { id: 4, sender: "cool_panda_42", body: "see you!", day: "Today", time: "11:02" },
   ],
   user_2: [
-    { id: 1, sender: ME, body: "Fixed your bug, check now", time: "18:30" },
-    { id: 2, sender: "user_2", body: "thanks for the help", time: "18:41" },
+    { id: 1, sender: ME, body: "Fixed your bug, check now", day: "Yesterday", time: "18:30" },
+    { id: 2, sender: "user_2", body: "thanks for the help", day: "Yesterday", time: "18:41" },
   ],
 };
 

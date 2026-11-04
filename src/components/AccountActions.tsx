@@ -21,17 +21,28 @@ function toggleTheme() {
 }
 
 /** Theme switch + Log out (with "are you sure?"). Used in both sidebars. */
-export function AccountActions({ className = "" }: { className?: string }) {
+type AccountActionsProps = {
+  className?: string;
+  /** Small version for the phone top bar: icon-only theme button, side by side. */
+  compact?: boolean;
+};
+
+export function AccountActions({ className = "", compact = false }: AccountActionsProps) {
   const router = useRouter();
   const { me } = useChatStore();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   return (
-    <div className={`flex flex-wrap gap-1 md:flex-col ${className}`}>
-      <button type="button" onClick={toggleTheme} className={BUTTON_CLASS}>
+    <div className={`flex gap-1 ${compact ? "items-center" : "flex-col"} ${className}`}>
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className={BUTTON_CLASS}
+        aria-label={compact ? "Switch light/dark mode" : undefined}
+      >
         {/* Both labels are in the page; CSS shows the right one for the current theme. */}
-        <span className="dark:hidden">🌙 Dark mode</span>
-        <span className="hidden dark:inline">☀️ Light mode</span>
+        <span className="dark:hidden">🌙{compact ? "" : " Dark mode"}</span>
+        <span className="hidden dark:inline">☀️{compact ? "" : " Light mode"}</span>
       </button>
 
       <button type="button" onClick={() => setConfirmingLogout(true)} className={BUTTON_CLASS}>

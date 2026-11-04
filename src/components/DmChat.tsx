@@ -7,11 +7,15 @@ import { ChatView } from "./ChatView";
 import { useChatStore } from "./ChatStore";
 import { PageHeader } from "./PageHeader";
 import { StateView } from "./StateView";
+import { useToast } from "./Toast";
 import { BlockConfirmDialog } from "./UserDialog";
+
+const BACK = "/chat/directMsg";
 
 /** A direct-message chat with one person. */
 export function DmChat({ username }: { username: string }) {
-  const { me, dmMessages, isBlocked, sendDm, block, markRead } = useChatStore();
+  const { me, dmMessages, isBlocked, sendDm, block, unblock, markRead } = useChatStore();
+  const showToast = useToast();
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
   // Opening the chat means you've read their messages.
@@ -20,17 +24,26 @@ export function DmChat({ username }: { username: string }) {
   }, [username, markRead]);
 
   if (username === me) {
-    return <StateView title="That's you!" description="You can't send a direct message to yourself." />;
+    return (
+      <>
+        <PageHeader title="That's you!" backHref={BACK} />
+        <StateView title="That's you!" description="You can't send a direct message to yourself." />
+      </>
+    );
   }
 
   if (isBlocked(username)) {
     return (
       <>
-        <PageHeader title={`Chat with @${username}`} />
+        <PageHeader title={`Chat with @${username}`} backHref={BACK} />
         <StateView
           title="This conversation is not available"
           description={`You blocked @${username}. Unblock them to see this chat again.`}
-          action={<Link href="/chat/block" className="text-sm font-medium text-accent hover:underline">Go to Blocked users</Link>}
+          action={
+            <Link href="/chat/block" className="text-sm font-medium text-accent hover:underline">
+              Go to Blocked users
+            </Link>
+          }
         />
       </>
     );
@@ -41,6 +54,7 @@ export function DmChat({ username }: { username: string }) {
       <PageHeader
         title={`Chat with @${username}`}
         description="Direct message"
+        backHref={BACK}
         action={
           <Button variant="secondary" onClick={() => setConfirmingBlock(true)}>
             Block
@@ -60,6 +74,7 @@ export function DmChat({ username }: { username: string }) {
           onConfirm={() => {
             block(username);
             setConfirmingBlock(false);
+            showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
           }}
           onCancel={() => setConfirmingBlock(false)}
         />
