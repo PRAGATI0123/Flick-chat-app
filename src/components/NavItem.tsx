@@ -25,10 +25,12 @@ export function NavItem({ href, label, active = false }: { href: string; label: 
 
 function NavLinks({ pathname }: { pathname?: string }) {
   return (
-    <nav className="flex gap-1 md:flex-col">
+    <nav className="flex flex-wrap gap-1 md:flex-col">
       {LINKS.map((link) => (
         <NavItem key={link.href} {...link} active={!!pathname?.startsWith(link.href)} />
       ))}
+      {/* For now this just goes back to the start page; real logout comes with the API. */}
+      <NavItem href="/" label="Log out" />
     </nav>
   );
 }
