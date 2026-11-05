@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { logout } from "@/lib/api";
 import { clearSession } from "@/lib/session";
 import { useChatStore } from "./ChatStore";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -37,7 +38,7 @@ export function AccountActions({ className = "", compact = false }: AccountActio
   async function logOut() {
     try {
       // Our server route deletes both cookies (the hidden token and your name).
-      await fetch("/api/logout", { method: "POST" });
+      await logout();
     } catch {
       // No internet: still forget the visible name here, so you land on the start page.
       clearSession();

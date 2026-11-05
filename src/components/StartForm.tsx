@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { ApiError, getMe, register } from "@/lib/api";
 import { clearSession, readSessionName } from "@/lib/session";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -23,9 +24,12 @@ export function StartForm() {
   // - it doesn't   → forget the old name, so you can pick a new one here
   useEffect(() => {
     if (!readSessionName()) return;
-    fetch("/api/me")
-      .then((response) => (response.ok ? router.replace("/chat/rooms") : clearSession()))
-      .catch(() => {}); // no internet: just stay on this page
+    getMe()
+      .then(() => router.replace("/chat/rooms"))
+      .catch((error) => {
+        // Not known anymore → forget the old name. (No internet → just stay on this page.)
+        if (error instanceof ApiError && error.status === 401) clearSession();
+      });
   }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -39,24 +43,16 @@ export function StartForm() {
     setSubmitting(true);
     setError(null);
     try {
-      // Our server route registers the name on the real API and keeps the token in a hidden cookie.
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name }),
-      });
-      if (response.ok) {
-        router.replace("/chat/rooms"); // replace: Back won't return to the start page
-        return; // keep the button in "Starting…" while the next page opens
+      // Registers the name on the real API; the token goes into a hidden cookie.
+      await register(name);
+      router.replace("/chat/rooms"); // replace: Back won't return to the start page
+      return; // keep the button in "Starting…" while the next page opens
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setError(`"${name}" is already taken. Try another one.`);
+      } else {
+        setError(error instanceof ApiError ? error.message : "Couldn't create your username. Try again.");
       }
-      const json = await response.json().catch(() => null);
-      setError(
-        response.status === 409
-          ? `"${name}" is already taken. Try another one.`
-          : (json?.error?.message ?? "Couldn't create your username. Try again."),
-      );
-    } catch {
-      setError("Can't reach the server. Check your internet connection.");
     }
     setSubmitting(false);
   }
