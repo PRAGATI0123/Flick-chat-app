@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useChatStore } from "@/components/ChatStore";
+import { MessagesIcon } from "@/components/icons";
 import { Input } from "@/components/Input";
 import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
@@ -21,7 +22,11 @@ export default function DirectMessagesPage() {
 
   return (
     <>
-      <PageHeader title="Direct messages" description="Your one-on-one conversations." />
+      <PageHeader
+        title="Direct messages"
+        icon={<MessagesIcon className="size-5 md:size-6" />}
+        description="Your one-on-one conversations."
+      />
 
       <div className="flex flex-col gap-3 p-4 md:p-6">
         {conversations.length > 0 && (
