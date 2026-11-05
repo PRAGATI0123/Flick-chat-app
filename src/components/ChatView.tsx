@@ -10,10 +10,12 @@ type ChatViewProps = {
   me: string;
   onSend: (body: string) => void;
   placeholder?: string;
+  /** In a DM, the other person's username (see MessageList). */
+  dmWith?: string;
 };
 
 /** Messages + the box to write a new one. */
-export function ChatView({ messages, me, onSend, placeholder }: ChatViewProps) {
+export function ChatView({ messages, me, onSend, placeholder, dmWith }: ChatViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {messages.length === 0 ? (
@@ -21,7 +23,7 @@ export function ChatView({ messages, me, onSend, placeholder }: ChatViewProps) {
           <StateView title="No messages yet" description="Say hi 👋" />
         </div>
       ) : (
-        <MessageList messages={messages} me={me} />
+        <MessageList messages={messages} me={me} dmWith={dmWith} />
       )}
       <Composer placeholder={placeholder} onSend={onSend} />
     </div>

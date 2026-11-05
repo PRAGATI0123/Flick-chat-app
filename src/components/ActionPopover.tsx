@@ -15,11 +15,7 @@ type ActionPopoverProps = {
   onSubmit: (value: string) => string | void;
 };
 
-/**
- * A button that opens a small box with one text field when you hover over it
- * or click it. The box stays open while you type in it, and closes after it worked,
- * when the mouse leaves, when you click somewhere else, or on Escape.
- */
+
 export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmit }: ActionPopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);

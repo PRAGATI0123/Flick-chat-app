@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { clearSession } from "@/lib/session";
 import { useChatStore } from "./ChatStore";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { LogoutIcon, MoonIcon, SunIcon } from "./icons";
 import { NAV_ITEM_CLASS } from "./NavItem";
 
 const BUTTON_CLASS = `${NAV_ITEM_CLASS} text-muted hover:text-foreground`;
@@ -20,17 +22,22 @@ function toggleTheme() {
   }
 }
 
-/** Theme switch + Log out (with "are you sure?"). Used in both sidebars. */
 type AccountActionsProps = {
   className?: string;
-  /** Small version for the phone top bar: icon-only theme button, side by side. */
+  /** Small version for the phone top bar: icons only, side by side. */
   compact?: boolean;
 };
 
+/** Theme switch + Log out (with "are you sure?"). Used in the sidebars and the phone top bar. */
 export function AccountActions({ className = "", compact = false }: AccountActionsProps) {
   const router = useRouter();
-  const { me } = useChatStore();
+  const { myName } = useChatStore();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+  function logOut() {
+    clearSession(); // forget the login on this browser
+    router.replace("/"); // start page (replace: Back won't return to the chat)
+  }
 
   return (
     <div className={`flex gap-1 ${compact ? "items-center" : "flex-col"} ${className}`}>
@@ -40,22 +47,33 @@ export function AccountActions({ className = "", compact = false }: AccountActio
         className={BUTTON_CLASS}
         aria-label={compact ? "Switch light/dark mode" : undefined}
       >
-        {/* Both labels are in the page; CSS shows the right one for the current theme. */}
-        <span className="dark:hidden">🌙{compact ? "" : " Dark mode"}</span>
-        <span className="hidden dark:inline">☀️{compact ? "" : " Light mode"}</span>
+        {/* Both versions are in the page; CSS shows the right one for the current theme. */}
+        <span className="flex items-center gap-2.5 dark:hidden">
+          <MoonIcon />
+          {!compact && "Dark mode"}
+        </span>
+        <span className="hidden items-center gap-2.5 dark:flex">
+          <SunIcon />
+          {!compact && "Light mode"}
+        </span>
       </button>
 
-      <button type="button" onClick={() => setConfirmingLogout(true)} className={BUTTON_CLASS}>
-        Log out
+      <button
+        type="button"
+        onClick={() => setConfirmingLogout(true)}
+        className={BUTTON_CLASS}
+        aria-label={compact ? "Log out" : undefined}
+      >
+        <LogoutIcon />
+        {!compact && "Log out"}
       </button>
 
       {confirmingLogout && (
         <ConfirmDialog
           title="Log out?"
-          message={`There's no password, so you won't be able to sign back in as @${me}. You'll need to pick a username again.`}
+          message={`There's no password, so you won't be able to sign back in as @${myName ?? "this user"}. You'll need to pick a username again.`}
           confirmLabel="Log out"
-          // For now this just goes back to the start page; real logout comes with the API.
-          onConfirm={() => router.push("/")}
+          onConfirm={logOut}
           onCancel={() => setConfirmingLogout(false)}
         />
       )}

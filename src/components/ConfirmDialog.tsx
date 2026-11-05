@@ -29,3 +29,24 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCance
     </Modal>
   );
 }
+
+/** The "are you sure?" popup for blocking someone (chat menu and the DM's Block button). */
+export function BlockConfirmDialog({
+  username,
+  onConfirm,
+  onCancel,
+}: {
+  username: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title={`Block @${username}?`}
+      message="You won't see their messages in any room or in your DMs anymore. You can unblock them later from Blocked users."
+      confirmLabel="Block"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}

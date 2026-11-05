@@ -1,29 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "./Button";
 import { ChatView } from "./ChatView";
-import { useChatStore } from "./ChatStore";
+import { useChatStore, useReadingDm } from "./ChatStore";
+import { BlockConfirmDialog } from "./ConfirmDialog";
 import { PageHeader } from "./PageHeader";
 import { StateView } from "./StateView";
 import { useToast } from "./Toast";
-import { BlockConfirmDialog } from "./UserDialog";
 
 const BACK = "/chat/directMsg";
 
-/** A direct-message chat with one person. */
+/** A direct-message chat with one person (the full page). */
 export function DmChat({ username }: { username: string }) {
-  const { me, dmMessages, isBlocked, sendDm, block, unblock, markRead } = useChatStore();
+  const { me, dmMessages, isBlocked, isMe, sendDm, block, unblock } = useChatStore();
   const showToast = useToast();
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
-  // Opening the chat means you've read their messages.
-  useEffect(() => {
-    markRead(username);
-  }, [username, markRead]);
+  // While this chat is on screen, its messages count as read (no unread badge).
+  useReadingDm(username);
 
-  if (username === me) {
+  if (isMe(username)) {
     return (
       <>
         <PageHeader title="That's you!" backHref={BACK} />
@@ -66,6 +64,7 @@ export function DmChat({ username }: { username: string }) {
         me={me}
         onSend={(body) => sendDm(username, body)}
         placeholder={`Message @${username}…`}
+        dmWith={username}
       />
 
       {confirmingBlock && (

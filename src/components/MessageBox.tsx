@@ -10,8 +10,8 @@ type MessageBoxProps = {
   mine?: boolean;
   /** false for the 2nd, 3rd… message in a row from the same person: no name/avatar again. */
   showHeader?: boolean;
-  /** Called when the @username is clicked. */
-  onUserClick?: (username: string) => void;
+  /** Called when the @username or the avatar is clicked; `anchor` is what was clicked (to place the menu). */
+  onUserClick?: (username: string, anchor: HTMLElement) => void;
 };
 
 export function MessageBox({ sender, body, time, mine = false, showHeader = true, onUserClick }: MessageBoxProps) {
@@ -30,8 +30,20 @@ export function MessageBox({ sender, body, time, mine = false, showHeader = true
   return (
     // "group": the Copy button appears when the mouse is over (or a finger taps) this message
     <div className={`group flex items-end gap-2 ${mine ? "flex-row-reverse" : ""} ${showHeader ? "" : "-mt-3"}`}>
-      {/* Avatar only on the first message of a group; an empty box keeps the bubbles lined up */}
-      {!mine && (showHeader ? <Avatar name={sender} size="sm" /> : <span className="size-8 shrink-0" />)}
+      {/* Avatar (clickable) only on the first message of a group; an empty box keeps the bubbles lined up */}
+      {!mine &&
+        (showHeader ? (
+          <button
+            type="button"
+            onClick={(event) => onUserClick?.(sender, event.currentTarget)}
+            aria-label={`Options for @${sender}`}
+            className="shrink-0 rounded-lg hover:opacity-80 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <Avatar name={sender} size="sm" />
+          </button>
+        ) : (
+          <span className="size-8 shrink-0" />
+        ))}
 
       <div className={`flex max-w-[80%] min-w-0 flex-col gap-1 sm:max-w-[70%] ${mine ? "items-end" : "items-start"}`}>
         {showHeader && (
@@ -41,7 +53,7 @@ export function MessageBox({ sender, body, time, mine = false, showHeader = true
             ) : (
               <button
                 type="button"
-                onClick={() => onUserClick?.(sender)}
+                onClick={(event) => onUserClick?.(sender, event.currentTarget)}
                 className="font-medium hover:text-foreground hover:underline"
               >
                 @{sender}

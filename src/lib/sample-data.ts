@@ -4,7 +4,19 @@
 // The real API gives a full timestamp (created_at); the day and time will be worked out from it.
 export type Message = { id: number; sender: string; body: string; day: string; time: string };
 
+// Inside the sample data, messages with sender ME are "yours" (shown as "You").
+// The name you see on screen is the one you typed on the start page (src/lib/session.ts).
 export const ME = "pragati_123";
+
+// Usernames already used by the sample people. Picking one on the start page shows
+// "already taken", like the real API would.
+export const TAKEN_USERNAMES = ["cool_panda_42", "user_2", "user_3", "user_4"];
+
+// DEMO ONLY: there are no real people yet, so a DM you send gets an automatic reply
+// after a few seconds (to show the unread count). Set to false to turn it off.
+// Remove this when the API is wired up; real replies will come from the server.
+export const DEMO_AUTO_REPLY = true;
+export const DEMO_REPLIES = ["👍", "Haha, nice!", "Okay, got it.", "Sure, let's do it!", "Thanks! 🙂"];
 
 export const ROOMS = [
   { id: 1, name: "General", created_by: "cool_panda_42" },

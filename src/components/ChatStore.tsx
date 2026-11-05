@@ -1,8 +1,20 @@
 "use client";
 
-import { createContext, use, useCallback, useState, type ReactNode } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { readSessionName } from "@/lib/session";
 import {
   BLOCKED_USERS,
+  DEMO_AUTO_REPLY,
+  DEMO_REPLIES,
   DM_MESSAGES,
   ME,
   ROOMS,
@@ -23,14 +35,23 @@ export type Room = { id: number; name: string; created_by: string };
 type BlockedUser = { username: string; blocked_at: string };
 
 type ChatStore = {
+  /** Who "you" are inside the data (messages with this sender show as "You"). */
   me: string;
+  /** The name you logged in with, for showing on screen (null for a moment while the page loads). */
+  myName: string | null;
   rooms: Room[];
   roomMessages: Record<string, Message[]>;
   dmMessages: Record<string, Message[]>;
   blocked: BlockedUser[];
   unread: Record<string, number>;
   isBlocked: (username: string) => boolean;
+  /** Is this username you? (works for both your data id and your login name) */
+  isMe: (username: string) => boolean;
   unreadTotal: number;
+  /** The person whose DM panel is open on top of the page (null = closed). */
+  quickDmUser: string | null;
+  openQuickDm: (username: string) => void;
+  closeQuickDm: () => void;
   /** Returns an error message, or nothing if it worked. */
   createRoom: (name: string) => string | void;
   deleteRoom: (id: number) => void;
@@ -40,6 +61,7 @@ type ChatStore = {
   block: (username: string) => void;
   unblock: (username: string) => void;
   markRead: (username: string) => void;
+  setActiveDm: (username: string | null) => void;
 };
 
 const ChatStoreContext = createContext<ChatStore | null>(null);
@@ -49,9 +71,18 @@ function nowTime() {
   return new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-function newMessage(list: Message[] | undefined, body: string): Message {
-  return { id: (list?.at(-1)?.id ?? 0) + 1, sender: ME, body, day: "Today", time: nowTime() };
+function newMessage(list: Message[] | undefined, sender: string, body: string): Message {
+  return { id: (list?.at(-1)?.id ?? 0) + 1, sender, body, day: "Today", time: nowTime() };
 }
+
+/** Adds a message to a DM and moves that conversation to the top of the list. */
+function addDm(all: Record<string, Message[]>, username: string, sender: string, body: string) {
+  const { [username]: existing = [], ...rest } = all;
+  return { [username]: [...existing, newMessage(existing, sender, body)], ...rest };
+}
+
+// The login cookie never changes while a page is open, so there is nothing to subscribe to.
+const subscribeToNothing = () => () => {};
 
 export function ChatStoreProvider({ children }: { children: ReactNode }) {
   const [rooms, setRooms] = useState<Room[]>(ROOMS);
@@ -59,8 +90,18 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
   const [dmMessages, setDmMessages] = useState(DM_MESSAGES);
   const [blocked, setBlocked] = useState<BlockedUser[]>(BLOCKED_USERS);
   const [unread, setUnread] = useState(UNREAD);
+  const [quickDmUser, setQuickDmUser] = useState<string | null>(null);
 
-  const isBlocked = (username: string) => blocked.some((b) => b.username === username);
+  // The cookie can only be read in the browser. On the server (and for the very first
+  // moment in the browser) this is null, then React fills in the real name.
+  const myName = useSyncExternalStore(subscribeToNothing, readSessionName, () => null);
+
+  // Whose DM is on screen right now (a DM page or the DM panel). A ref, because replies
+  // arrive later from a timer and need the CURRENT value, not the one from when it started.
+  const activeDmRef = useRef<string | null>(null);
+  const setActiveDm = useCallback((username: string | null) => {
+    activeDmRef.current = username;
+  }, []);
 
   // Stable function (useCallback) because chat pages call it from an effect.
   const markRead = useCallback((username: string) => {
@@ -68,17 +109,42 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     setUnread((current) => (current[username] ? { ...current, [username]: 0 } : current));
   }, []);
 
+  /** A message from someone else arrived in your DMs. */
+  const receiveDm = useCallback((username: string, body: string) => {
+    setDmMessages((current) => addDm(current, username, username, body));
+    // Not looking at that chat right now? Then it's unread: +1 on the badge.
+    if (activeDmRef.current !== username) {
+      setUnread((current) => ({ ...current, [username]: (current[username] ?? 0) + 1 }));
+    }
+  }, []);
+
+  // DEMO ONLY: pending auto-replies, so they can be cancelled if this page goes away.
+  const replyTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    const timers = replyTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const isBlocked = (username: string) => blocked.some((b) => b.username === username);
+  const isMe = (username: string) => username === ME || username === myName;
+
   const store: ChatStore = {
     me: ME,
+    myName,
     rooms,
     roomMessages,
     dmMessages,
     blocked,
     unread,
     isBlocked,
+    isMe,
     unreadTotal: Object.entries(unread)
       .filter(([username]) => !isBlocked(username))
       .reduce((sum, [, count]) => sum + count, 0),
+
+    quickDmUser,
+    openQuickDm: (username) => setQuickDmUser(username),
+    closeQuickDm: () => setQuickDmUser(null),
 
     createRoom(name) {
       if (rooms.some((room) => room.name.toLowerCase() === name.toLowerCase())) {
@@ -98,25 +164,25 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
       });
     },
 
-    sendToRoom(roomId, body) {
-      setRoomMessages((current) => ({
-        ...current,
-        [roomId]: [...(current[roomId] ?? []), newMessage(current[roomId], body)],
-      }));
-    },
-
-    sendDm(username, body) {
-      // Put this conversation first, so the DM list shows the most recent at the top.
-      setDmMessages((current) => {
-        const { [username]: existing = [], ...rest } = current;
-        return { [username]: [...existing, newMessage(existing, body)], ...rest };
-      });
-    },
-
     restoreRoom(room, messages, index) {
       // Put it back where it was (used by "Undo" after deleting).
       setRooms((current) => [...current.slice(0, index), room, ...current.slice(index)]);
       setRoomMessages((current) => ({ ...current, [String(room.id)]: messages }));
+    },
+
+    sendToRoom(roomId, body) {
+      setRoomMessages((current) => ({
+        ...current,
+        [roomId]: [...(current[roomId] ?? []), newMessage(current[roomId], ME, body)],
+      }));
+    },
+
+    sendDm(username, body) {
+      setDmMessages((current) => addDm(current, username, ME, body));
+      if (DEMO_AUTO_REPLY) {
+        const reply = DEMO_REPLIES[Math.floor(Math.random() * DEMO_REPLIES.length)];
+        replyTimers.current.push(setTimeout(() => receiveDm(username, reply), 2500));
+      }
     },
 
     block(username) {
@@ -133,6 +199,7 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     },
 
     markRead,
+    setActiveDm,
   };
 
   return <ChatStoreContext value={store}>{children}</ChatStoreContext>;
@@ -142,4 +209,24 @@ export function useChatStore() {
   const store = use(ChatStoreContext);
   if (!store) throw new Error("useChatStore must be used inside <ChatStoreProvider>");
   return store;
+}
+
+/**
+ * Call this in a component that shows one person's DM (the DM page or the DM panel).
+ * While it's on screen, that chat counts as "read": the badge is cleared, and
+ * replies that arrive don't add to it.
+ */
+export function useReadingDm(username: string) {
+  const { markRead, setActiveDm, dmMessages } = useChatStore();
+  const messageCount = dmMessages[username]?.length ?? 0;
+
+  useEffect(() => {
+    setActiveDm(username);
+    return () => setActiveDm(null);
+  }, [username, setActiveDm]);
+
+  // Clear the badge when the chat opens, and again whenever a new message arrives in it.
+  useEffect(() => {
+    markRead(username);
+  }, [username, markRead, messageCount]);
 }

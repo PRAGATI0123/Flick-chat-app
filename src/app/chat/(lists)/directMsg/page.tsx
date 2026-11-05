@@ -12,7 +12,7 @@ import { matches, preview, shortWhen } from "@/lib/format";
 
 export default function DirectMessagesPage() {
   const router = useRouter();
-  const { me, dmMessages, unread, isBlocked } = useChatStore();
+  const { me, dmMessages, unread, isBlocked, isMe } = useChatStore();
   const [query, setQuery] = useState("");
 
   // One row per person you've chatted with, newest first. Blocked people are left out.
@@ -25,7 +25,7 @@ export default function DirectMessagesPage() {
   function startConversation(input: string) {
     const username = input.replace(/^@/, "");
     if (!/^[A-Za-z0-9_]{3,32}$/.test(username)) return "Use 3–32 letters, numbers or underscores.";
-    if (username === me) return "You can't message yourself.";
+    if (isMe(username)) return "You can't message yourself.";
     if (isBlocked(username)) return `You blocked @${username}. Unblock them first.`;
     router.push(`/chat/directMsg/${username}`);
   }
