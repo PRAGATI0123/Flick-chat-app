@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ActionPopover } from "@/components/ActionPopover";
 import { useChatStore, type Room } from "@/components/ChatStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RoomsIcon } from "@/components/icons";
 import { Input } from "@/components/Input";
 import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
@@ -81,7 +82,7 @@ export default function RoomsPage() {
                 <ListRow
                   key={room.id}
                   href={`/chat/rooms/${room.id}`}
-                  icon="#"
+                  icon={<RoomsIcon className="size-5" />}
                   title={room.name}
                   subtitle={last ? preview(last, me, true) : mine ? "Created by you · no messages yet" : "No messages yet"}
                   meta={last ? shortWhen(last) : undefined}

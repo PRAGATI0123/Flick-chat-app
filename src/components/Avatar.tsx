@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 // Same name always gives the same colour ("@" or "#" at the start is ignored).
 function hueFor(name: string) {
   let hash = 0;
@@ -8,8 +10,8 @@ function hueFor(name: string) {
 type AvatarProps = {
   /** Used to pick the colour. */
   name: string;
-  /** Text inside the square. Defaults to the first letter of the name. */
-  label?: string;
+  /** What goes inside the square (text or an icon). Defaults to the first letter of the name. */
+  label?: ReactNode;
   size?: "sm" | "md";
 };
 

@@ -6,8 +6,8 @@ type ListRowProps = {
   href: string;
   title: string;
   subtitle?: string;
-  /** Text in the square on the left, e.g. "#". Defaults to the first letter of the title. */
-  icon?: string;
+  /** What goes in the square on the left (text or an icon). Defaults to the first letter of the title. */
+  icon?: ReactNode;
   /** Small text on the right, e.g. the time of the last message. */
   meta?: string;
   /** Unread count shown as a small bubble. */
