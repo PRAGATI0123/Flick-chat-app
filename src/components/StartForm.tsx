@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { readSessionName } from "@/lib/session";
+import { clearSession, readSessionName } from "@/lib/session";
 import { Button } from "./Button";
 import { Input } from "./Input";
 
@@ -16,10 +16,16 @@ export function StartForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false); // waiting for the server?
 
-  // Already logged in (e.g. came back here with the browser's Back button)? Skip this page.
-  // (Normal visits never get here: src/proxy.ts redirects them first.)
+  // Your name is remembered on this browser, but are you really still logged in?
+  // (e.g. you came back here with the Back button, or there's an old name cookie from
+  // before the real login existed.) Ask the real API who you are:
+  // - it knows you → skip this page and go to the rooms
+  // - it doesn't   → forget the old name, so you can pick a new one here
   useEffect(() => {
-    if (readSessionName()) router.replace("/chat/rooms");
+    if (!readSessionName()) return;
+    fetch("/api/me")
+      .then((response) => (response.ok ? router.replace("/chat/rooms") : clearSession()))
+      .catch(() => {}); // no internet: just stay on this page
   }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

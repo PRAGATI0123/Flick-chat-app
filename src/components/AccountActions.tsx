@@ -34,8 +34,14 @@ export function AccountActions({ className = "", compact = false }: AccountActio
   const { myName } = useChatStore();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
-  function logOut() {
-    clearSession(); // forget the login on this browser
+  async function logOut() {
+    try {
+      // Our server route deletes both cookies (the hidden token and your name).
+      await fetch("/api/logout", { method: "POST" });
+    } catch {
+      // No internet: still forget the visible name here, so you land on the start page.
+      clearSession();
+    }
     router.replace("/"); // start page (replace: Back won't return to the chat)
   }
 
