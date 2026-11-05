@@ -45,6 +45,7 @@ export default function RoomsPage() {
     <>
       <PageHeader
         title="Rooms"
+        icon={<RoomsIcon className="size-5 md:size-6" />}
         description="Rooms with no new messages for 24 hours are removed automatically."
         action={
           <ActionPopover
