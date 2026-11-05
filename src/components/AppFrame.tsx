@@ -12,10 +12,7 @@ function UserBar() {
   return (
     <div className="hidden items-center gap-3 border-b border-border px-6 py-3 md:flex">
       <Avatar name={myName ?? "?"} size="sm" />
-      <div className="leading-tight">
-        <p className="text-sm font-medium">{myName ? `@${myName}` : " "}</p>
-        <p className="text-xs text-muted">Signed in as guest</p>
-      </div>
+      <p className="text-sm font-medium">{myName ? `@${myName}` : " "}</p>
     </div>
   );
 }
