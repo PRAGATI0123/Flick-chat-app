@@ -53,6 +53,23 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Small "pop in" animation for menus and cards (class: animate-pop-in).
+   Used with motion-safe:, so it's skipped for people who turned off animations. */
+@theme {
+  --animate-pop-in: pop-in 140ms ease-out;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -48,10 +48,6 @@ type ChatStore = {
   /** Is this username you? (works for both your data id and your login name) */
   isMe: (username: string) => boolean;
   unreadTotal: number;
-  /** The person whose DM panel is open on top of the page (null = closed). */
-  quickDmUser: string | null;
-  openQuickDm: (username: string) => void;
-  closeQuickDm: () => void;
   /** Returns an error message, or nothing if it worked. */
   createRoom: (name: string) => string | void;
   deleteRoom: (id: number) => void;
@@ -90,13 +86,12 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
   const [dmMessages, setDmMessages] = useState(DM_MESSAGES);
   const [blocked, setBlocked] = useState<BlockedUser[]>(BLOCKED_USERS);
   const [unread, setUnread] = useState(UNREAD);
-  const [quickDmUser, setQuickDmUser] = useState<string | null>(null);
 
   // The cookie can only be read in the browser. On the server (and for the very first
   // moment in the browser) this is null, then React fills in the real name.
   const myName = useSyncExternalStore(subscribeToNothing, readSessionName, () => null);
 
-  // Whose DM is on screen right now (a DM page or the DM panel). A ref, because replies
+  // Whose DM is on screen right now (a DM page or the mini chat card). A ref, because replies
   // arrive later from a timer and need the CURRENT value, not the one from when it started.
   const activeDmRef = useRef<string | null>(null);
   const setActiveDm = useCallback((username: string | null) => {
@@ -141,10 +136,6 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     unreadTotal: Object.entries(unread)
       .filter(([username]) => !isBlocked(username))
       .reduce((sum, [, count]) => sum + count, 0),
-
-    quickDmUser,
-    openQuickDm: (username) => setQuickDmUser(username),
-    closeQuickDm: () => setQuickDmUser(null),
 
     createRoom(name) {
       if (rooms.some((room) => room.name.toLowerCase() === name.toLowerCase())) {
@@ -212,7 +203,7 @@ export function useChatStore() {
 }
 
 /**
- * Call this in a component that shows one person's DM (the DM page or the DM panel).
+ * Call this in a component that shows one person's DM (the DM page or the mini chat card).
  * While it's on screen, that chat counts as "read": the badge is cleared, and
  * replies that arrive don't add to it.
  */

@@ -30,9 +30,14 @@ export function MessageBox({ sender, body, time, mine = false, showHeader = true
   return (
     // "group": the Copy button appears when the mouse is over (or a finger taps) this message
     <div className={`group flex items-end gap-2 ${mine ? "flex-row-reverse" : ""} ${showHeader ? "" : "-mt-3"}`}>
-      {/* Avatar (clickable) only on the first message of a group; an empty box keeps the bubbles lined up */}
+      {/* Avatar only on the first message of a group (clickable when there's a menu);
+          an empty box keeps the bubbles lined up */}
       {!mine &&
-        (showHeader ? (
+        (!showHeader ? (
+          <span className="size-8 shrink-0" />
+        ) : !onUserClick ? (
+          <Avatar name={sender} size="sm" />
+        ) : (
           <button
             type="button"
             onClick={(event) => onUserClick?.(sender, event.currentTarget)}
@@ -41,8 +46,6 @@ export function MessageBox({ sender, body, time, mine = false, showHeader = true
           >
             <Avatar name={sender} size="sm" />
           </button>
-        ) : (
-          <span className="size-8 shrink-0" />
         ))}
 
       <div className={`flex max-w-[80%] min-w-0 flex-col gap-1 sm:max-w-[70%] ${mine ? "items-end" : "items-start"}`}>
@@ -50,6 +53,8 @@ export function MessageBox({ sender, body, time, mine = false, showHeader = true
           <div className="text-xs text-muted">
             {mine ? (
               "You"
+            ) : !onUserClick ? (
+              <span className="font-medium">@{sender}</span>
             ) : (
               <button
                 type="button"

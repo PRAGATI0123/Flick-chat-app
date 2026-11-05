@@ -7,9 +7,11 @@ import { Input } from "./Input";
 type ComposerProps = {
   placeholder?: string;
   onSend: (body: string) => void;
+  /** Put the cursor in the box straight away (used by the mini chat). */
+  autoFocus?: boolean;
 };
 
-export function Composer({ placeholder = "Write a message…", onSend }: ComposerProps) {
+export function Composer({ placeholder = "Write a message…", onSend, autoFocus }: ComposerProps) {
   const [text, setText] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,6 +33,7 @@ export function Composer({ placeholder = "Write a message…", onSend }: Compose
         placeholder={placeholder}
         autoComplete="off"
         className="flex-1"
+        autoFocus={autoFocus}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />

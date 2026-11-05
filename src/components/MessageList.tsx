@@ -2,10 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { Message } from "@/lib/sample-data";
-import { useChatStore } from "./ChatStore";
-import { BlockConfirmDialog } from "./ConfirmDialog";
 import { MessageBox } from "./MessageBox";
-import { useToast } from "./Toast";
 import { UserMenu } from "./UserMenu";
 
 /** How close (in pixels) to the bottom still counts as "at the bottom". */
@@ -16,21 +13,19 @@ type MessageListProps = {
   me: string;
   /** In a DM, the other person: their menu won't offer "Direct message" (you're already in it). */
   dmWith?: string;
+  /** Clicking a name/avatar opens the user card. Off inside the mini chat (no card inside a card). */
+  userMenu?: boolean;
 };
 
-export function MessageList({ messages, me, dmWith }: MessageListProps) {
-  const { block, unblock, openQuickDm } = useChatStore();
-  const showToast = useToast();
+export function MessageList({ messages, me, dmWith, userMenu = true }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Is the list scrolled to the newest message? (a ref, because the scroll code below only reads it)
   const atBottomRef = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
   // How many messages you had seen the last time you were at the bottom.
   const [seenCount, setSeenCount] = useState(messages.length);
-  // The open dropdown menu: whose, and where on screen (null = closed).
+  // The open user card: whose, and where on screen (null = closed).
   const [menu, setMenu] = useState<{ username: string; anchor: DOMRect } | null>(null);
-  // Who is waiting for the "Block?" confirmation (null = no popup).
-  const [blockTarget, setBlockTarget] = useState<string | null>(null);
 
   function scrollToBottom(smooth = false) {
     const el = scrollRef.current;
@@ -51,12 +46,6 @@ export function MessageList({ messages, me, dmWith }: MessageListProps) {
     atBottomRef.current = isAtBottom;
     setAtBottom(isAtBottom);
     if (isAtBottom) setSeenCount(messages.length);
-  }
-
-  function confirmBlock(username: string) {
-    block(username);
-    setBlockTarget(null);
-    showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
   }
 
   const hasNewMessages = !atBottom && messages.length > seenCount;
@@ -85,8 +74,12 @@ export function MessageList({ messages, me, dmWith }: MessageListProps) {
                 mine={m.sender === me}
                 // New person, or a new day? Then show the name/avatar again.
                 showHeader={newDay || previous.sender !== m.sender}
-                // Name or avatar clicked → open the dropdown menu next to it
-                onUserClick={(username, anchor) => setMenu({ username, anchor: anchor.getBoundingClientRect() })}
+                // Name or avatar clicked → open the user card right next to it
+                onUserClick={
+                  userMenu
+                    ? (username, anchor) => setMenu({ username, anchor: anchor.getBoundingClientRect() })
+                    : undefined
+                }
               />
             </Fragment>
           );
@@ -109,24 +102,7 @@ export function MessageList({ messages, me, dmWith }: MessageListProps) {
           username={menu.username}
           anchor={menu.anchor}
           showDm={menu.username !== dmWith}
-          // Opens the DM panel on top of this page, so you stay in the room.
-          onDm={() => {
-            openQuickDm(menu.username);
-            setMenu(null);
-          }}
-          onBlock={() => {
-            setBlockTarget(menu.username);
-            setMenu(null);
-          }}
           onClose={() => setMenu(null)}
-        />
-      )}
-
-      {blockTarget && (
-        <BlockConfirmDialog
-          username={blockTarget}
-          onConfirm={() => confirmBlock(blockTarget)}
-          onCancel={() => setBlockTarget(null)}
         />
       )}
     </div>
