@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActionPopover } from "@/components/ActionPopover";
 import { Button } from "@/components/Button";
 import { useChatStore } from "@/components/ChatStore";
@@ -11,7 +11,7 @@ import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
 import { useToast } from "@/components/Toast";
-import { ApiError, type Room } from "@/lib/api";
+import { ApiError, getRoomMessages, type Message, type Room } from "@/lib/api";
 import { matches, timeAgo } from "@/lib/format";
 import { usePolling } from "@/hooks/usePolling";
 
@@ -35,9 +35,40 @@ export default function RoomsPage() {
   // messages, so this can be slower than the chat's 4 seconds.
   usePolling(reloadRooms, ROOMS_POLL_MS);
 
-  // Newest rooms first, then filtered by the search box.
+  // The newest message of each room (null = no messages yet). The rooms list from the
+  // server doesn't include it, so we ask each room for its messages and keep the last one.
+  const [lastMessages, setLastMessages] = useState<Record<number, Message | null>>({});
+
+  const loadLastMessages = useCallback(
+    () =>
+      Promise.all(
+        rooms.map((room) =>
+          getRoomMessages(room.id).then(
+            (list) => ({ id: room.id, last: list.at(-1) ?? null }),
+            () => null, // couldn't load this room: keep what we had
+          ),
+        ),
+      ).then((results) =>
+        setLastMessages((current) => {
+          const next = { ...current };
+          for (const result of results) if (result) next[result.id] = result.last;
+          return next;
+        }),
+      ),
+    [rooms],
+  );
+
+  // Every time the rooms list arrives (on open, then every 15 seconds), get the last messages too.
+  useEffect(() => {
+    loadLastMessages();
+  }, [loadLastMessages]);
+
+  /** When something last happened in a room: its last message, or when it was created. */
+  const lastActivity = (room: Room) => lastMessages[room.id]?.created_at ?? room.created_at;
+
+  // Most recently active rooms first, then filtered by the search box.
   const visibleRooms = [...rooms]
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)))
     .filter((room) => matches(room.name, query));
 
   async function handleCreate(name: string) {
@@ -58,14 +89,18 @@ export default function RoomsPage() {
     }
   }
 
-  /** "Created by you · 5 minutes ago" */
-  function createdText(room: Room) {
-    const who = !room.created_by
-      ? "a guest who has left" // the creator was deleted after 24h without activity
-      : isMe(room.created_by)
-        ? "you"
-        : `@${room.created_by}`;
-    return `Created by ${who} · ${timeAgo(room.created_at)}`;
+  /** "You: hello" or "@amit: hello" (or "No messages yet") */
+  function lastMessageText(room: Room) {
+    const last = lastMessages[room.id];
+    if (last === undefined) return "…"; // still loading
+    if (last === null) return "No messages yet";
+    return `${isMe(last.sender) ? "You" : `@${last.sender}`}: ${last.body}`;
+  }
+
+  /** "5 minutes ago" for the last message (nothing if the room has no messages). */
+  function lastMessageTime(room: Room) {
+    const last = lastMessages[room.id];
+    return last ? timeAgo(last.created_at) : undefined;
   }
 
   return (
@@ -121,7 +156,8 @@ export default function RoomsPage() {
                 href={`/chat/rooms/${room.id}`}
                 icon={<RoomsIcon className="size-5" />}
                 title={room.name}
-                subtitle={createdText(room)}
+                subtitle={lastMessageText(room)}
+                meta={lastMessageTime(room)}
                 // Only the person who created a room can delete it.
                 action={
                   room.created_by &&
