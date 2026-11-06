@@ -1,3 +1,4 @@
+import { clearSession } from "./session";
 
 export type User = {
   username: string;
@@ -51,6 +52,23 @@ export class ApiError extends Error {
   }
 }
 
+// ─── Login ended ──────────────────────────────────────────────────────────
+
+let leaving = false;
+
+/**
+ * 401 = your login doesn't work anymore (e.g. the guest was removed after 24 hours
+ * without activity). Forget the name and go back to the start page with a note.
+ * A full page load (not a router push), so every list, chat and timer starts fresh.
+ * Not on the start page itself: it checks your login there on purpose.
+ */
+function loginEnded() {
+  if (leaving || window.location.pathname === "/") return;
+  leaving = true; // many requests can get a 401 at once: go only once
+  clearSession();
+  window.location.replace("/?ended=1");
+}
+
 // ─── The one function that actually talks to the server ──────────────────
 
 type RequestOptions = {
@@ -80,6 +98,7 @@ async function request<T>(path: string, { method = "GET", body }: RequestOptions
   const json = await response.json().catch(() => null); // a reply without JSON → null
 
   if (!response.ok) {
+    if (response.status === 401) loginEnded();
     throw new ApiError(
       response.status,
       json?.error?.code ?? "UNKNOWN_ERROR",

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { TOKEN_COOKIE, apiUrl, errorResponse } from "@/lib/server/helpers";
+import { SESSION_COOKIE } from "@/lib/session";
 
 /**
  * The "middleman" for every API call from the browser.
@@ -58,8 +59,11 @@ async function forward(request: NextRequest, ctx: RouteContext<"/api/[...path]">
   });
 
   // 401 from the real API = this token no longer works (e.g. the guest was deleted after
-  // 24h without activity). Forget it, so the app goes back to the start page.
-  if (answer.status === 401) response.cookies.delete(TOKEN_COOKIE);
+  // 24h without activity). Forget it and the name, so the app goes back to the start page.
+  if (answer.status === 401) {
+    response.cookies.delete(TOKEN_COOKIE);
+    response.cookies.delete(SESSION_COOKIE);
+  }
 
   return response;
 }
