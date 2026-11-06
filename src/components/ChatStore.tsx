@@ -24,7 +24,6 @@ import {
   DEMO_REPLIES,
   DM_MESSAGES,
   ME,
-  ROOM_MESSAGES,
   UNREAD,
   type Message,
 } from "@/lib/sample-data";
@@ -52,7 +51,6 @@ type ChatStore = {
   roomsStatus: LoadStatus;
   /** Ask the server for the rooms list again. */
   reloadRooms: () => Promise<void>;
-  roomMessages: Record<string, Message[]>;
   dmMessages: Record<string, Message[]>;
   blocked: BlockedUser[];
   unread: Record<string, number>;
@@ -64,7 +62,6 @@ type ChatStore = {
   createRoom: (name: string) => Promise<string | void>;
   /** Deletes the room on the server. Throws an ApiError if the server says no (e.g. 403). */
   deleteRoom: (id: number) => Promise<void>;
-  sendToRoom: (roomId: string, body: string) => void;
   sendDm: (username: string, body: string) => void;
   block: (username: string) => void;
   unblock: (username: string) => void;
@@ -95,7 +92,6 @@ const subscribeToNothing = () => () => {};
 export function ChatStoreProvider({ children }: { children: ReactNode }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsStatus, setRoomsStatus] = useState<LoadStatus>("loading");
-  const [roomMessages, setRoomMessages] = useState(ROOM_MESSAGES);
 
   // Get the rooms list from the real API. The state is only changed when the server's
   // answer arrives (inside .then), never straight away.
@@ -162,7 +158,6 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     rooms,
     roomsStatus,
     reloadRooms,
-    roomMessages,
     dmMessages,
     blocked,
     unread,
@@ -190,13 +185,6 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
         if (!(error instanceof ApiError && error.status === 404)) throw error;
       }
       setRooms((current) => current.filter((room) => room.id !== id));
-    },
-
-    sendToRoom(roomId, body) {
-      setRoomMessages((current) => ({
-        ...current,
-        [roomId]: [...(current[roomId] ?? []), newMessage(current[roomId], ME, body)],
-      }));
     },
 
     sendDm(username, body) {

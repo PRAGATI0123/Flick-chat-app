@@ -1,24 +1,84 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { ApiError, getRoomMessages, sendRoomMessage, type Message } from "@/lib/api";
+import { toChatMessage } from "@/lib/format";
+import { Button } from "./Button";
 import { ChatView } from "./ChatView";
 import { useChatStore } from "./ChatStore";
 import { PageHeader } from "./PageHeader";
 import { StateView } from "./StateView";
+import { useToast } from "./Toast";
 
 const BACK = "/chat/rooms";
 
-/** One room's chat: header + messages (without blocked users) + message box. */
-export function RoomChat({ id }: { id: string }) {
-  const { me, rooms, roomsStatus, roomMessages, isBlocked, isMe, sendToRoom } = useChatStore();
-  const room = rooms.find((r) => String(r.id) === id);
+/** Where this room's messages are: loading, loaded, room gone (404), or failed. */
+type Status = "loading" | "ready" | "gone" | "error";
 
-  // The rooms list is still coming from the server (e.g. you opened this link directly).
-  if (!room && roomsStatus === "loading") {
-    return <PageHeader title="Loading…" backHref={BACK} />;
+/** One room's chat: header + real messages from the server + message box. */
+export function RoomChat({ id }: { id: string }) {
+  const roomId = Number(id); // the URL gives text ("12"); the API wants a number
+  const validId = Number.isInteger(roomId) && roomId > 0;
+  const { myName, rooms, isBlocked, isMe, reloadRooms } = useChatStore();
+  const showToast = useToast();
+  const room = rooms.find((r) => r.id === roomId); // for the name in the header
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [status, setStatus] = useState<Status>(validId ? "loading" : "gone");
+
+  // Get the latest 50 messages from the server. State changes only when the answer arrives.
+  const loadMessages = useCallback(
+    () =>
+      getRoomMessages(roomId).then(
+        (list) => {
+          setMessages(list);
+          setStatus("ready");
+        },
+        (error) => {
+          if (error instanceof ApiError && error.status === 404) {
+            setStatus("gone"); // the room was deleted (or removed after 24h without messages)
+            reloadRooms(); // so it also disappears from the rooms list
+          } else {
+            setStatus("error");
+          }
+        },
+      ),
+    [roomId, reloadRooms],
+  );
+
+  // Load when the room opens (and again if you switch to another room).
+  useEffect(() => {
+    if (validId) loadMessages();
+  }, [validId, loadMessages]);
+
+  async function send(body: string) {
+    try {
+      const sent = await sendRoomMessage(roomId, body); // saved on the server
+      // Add the server's copy (it has the real id and time). Skip it if it's already there.
+      setMessages((current) => (current.some((m) => m.id === sent.id) ? current : [...current, sent]));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setStatus("gone");
+        reloadRooms();
+      } else {
+        showToast({
+          message: `Message not sent: ${error instanceof ApiError ? error.message : "please try again."}`,
+        });
+      }
+    }
   }
 
-  if (!room) {
+  const creator = !room
+    ? undefined
+    : !room.created_by
+      ? "Created by a guest who has left"
+      : isMe(room.created_by)
+        ? "Created by you"
+        : `Created by @${room.created_by}`;
+  const header = <PageHeader title={`# ${room?.name ?? "Room"}`} description={creator} backHref={BACK} />;
+
+  if (status === "gone") {
     return (
       <>
         <PageHeader title="Room not found" backHref={BACK} />
@@ -35,20 +95,40 @@ export function RoomChat({ id }: { id: string }) {
     );
   }
 
-  // Messages are still the sample ones for now (the real ones come in the next step).
-  // Messages from blocked users are hidden everywhere.
-  const messages = (roomMessages[id] ?? []).filter((m) => !isBlocked(m.sender));
+  if (status === "loading") {
+    return (
+      <>
+        {header}
+        <StateView title="Loading messages…" />
+      </>
+    );
+  }
 
-  const creator = !room.created_by
-    ? "a guest who has left"
-    : isMe(room.created_by)
-      ? "you"
-      : `@${room.created_by}`;
+  if (status === "error") {
+    return (
+      <>
+        {header}
+        <StateView
+          title="Couldn't load messages"
+          description="Check your internet connection and try again."
+          action={
+            <Button variant="secondary" onClick={() => loadMessages()}>
+              Try again
+            </Button>
+          }
+        />
+      </>
+    );
+  }
+
+  // The server already leaves out messages from people you blocked; this also hides
+  // anyone you block while the room is open.
+  const bubbles = messages.filter((m) => !isBlocked(m.sender)).map(toChatMessage);
 
   return (
     <>
-      <PageHeader title={`# ${room.name}`} description={`Created by ${creator}`} backHref={BACK} />
-      <ChatView messages={messages} me={me} onSend={(body) => sendToRoom(id, body)} placeholder="Message the room…" />
+      {header}
+      <ChatView messages={bubbles} me={myName ?? ""} onSend={send} placeholder="Message the room…" />
     </>
   );
 }

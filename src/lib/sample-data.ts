@@ -14,22 +14,6 @@ export const ME = "pragati_123";
 export const DEMO_AUTO_REPLY = true;
 export const DEMO_REPLIES = ["👍", "Haha, nice!", "Okay, got it.", "Sure, let's do it!", "Thanks! 🙂"];
 
-// Messages for each room, by room id. (Rooms themselves now come from the real API;
-// these sample messages go away in the next step.)
-export const ROOM_MESSAGES: Record<string, Message[]> = {
-  "1": [
-    { id: 1, sender: "cool_panda_42", body: "hey everyone!", day: "Yesterday", time: "22:40" },
-    { id: 2, sender: "user_2", body: "Hi!......", day: "Yesterday", time: "22:42" },
-    { id: 3, sender: ME, body: "Yeahhhh", day: "Today", time: "10:23" },
-    { id: 4, sender: "user_3", body: "Nice", day: "Today", time: "10:25" },
-  ],
-  "2": [
-    { id: 1, sender: "user_2", body: "Anyone tried the new Next.js version?", day: "Today", time: "09:10" },
-    { id: 2, sender: ME, body: "Yes, using it for this chat app!", day: "Today", time: "09:12" },
-  ],
-  "3": [{ id: 1, sender: "user_3", body: "Random thought: chai > coffee ☕", day: "Yesterday", time: "08:45" }],
-};
-
 // Messages for each DM conversation, by the other person's username.
 // The DM list is built from this: newest conversation first, last message as the preview.
 export const DM_MESSAGES: Record<string, Message[]> = {
