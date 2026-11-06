@@ -11,16 +11,29 @@ type ActionPopoverProps = {
   prefix?: string;
   /** Text on the button inside the box, e.g. "Create". */
   submitLabel: string;
-  /** Runs with the typed text. Return an error message to show it, or nothing if it worked. */
-  onSubmit: (value: string) => string | void;
+  /** Text on the box's button while waiting for the server, e.g. "Creating…". */
+  busyLabel?: string;
+  /**
+   * Runs with the typed text. Return (or resolve to) an error message to show it,
+   * or nothing if it worked. Can be async: the box waits for the server's answer.
+   */
+  onSubmit: (value: string) => string | void | Promise<string | void>;
 };
 
 
-export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmit }: ActionPopoverProps) {
+export function ActionPopover({
+  label,
+  placeholder,
+  prefix,
+  submitLabel,
+  busyLabel = "Please wait…",
+  onSubmit,
+}: ActionPopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false); // waiting for the server?
 
   function close() {
     setOpen(false);
@@ -32,14 +45,16 @@ export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmi
     return !!containerRef.current?.contains(document.activeElement);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); // stop the browser from reloading the page
     const text = value.trim();
     if (!text) {
       setError("Please type something first.");
       return;
     }
-    const problem = onSubmit(text);
+    setBusy(true);
+    const problem = await onSubmit(text); // e.g. creates the room on the server
+    setBusy(false);
     if (problem) {
       setError(problem);
       return;
@@ -83,7 +98,9 @@ export function ActionPopover({ label, placeholder, prefix, submitLabel, onSubmi
               }}
             />
             {error && <p className="text-xs text-red-500">{error}</p>}
-            <Button type="submit">{submitLabel}</Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? busyLabel : submitLabel}
+            </Button>
           </form>
         </div>
       )}

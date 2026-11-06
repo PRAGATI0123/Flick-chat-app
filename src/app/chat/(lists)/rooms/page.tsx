@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActionPopover } from "@/components/ActionPopover";
-import { useChatStore, type Room } from "@/components/ChatStore";
+import { Button } from "@/components/Button";
+import { useChatStore } from "@/components/ChatStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { RoomsIcon } from "@/components/icons";
 import { Input } from "@/components/Input";
@@ -10,35 +11,52 @@ import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
 import { useToast } from "@/components/Toast";
-import { matches, preview, shortWhen } from "@/lib/format";
+import { ApiError, type Room } from "@/lib/api";
+import { matches, timeAgo } from "@/lib/format";
 
 export default function RoomsPage() {
-  const { me, rooms, roomMessages, isBlocked, createRoom, deleteRoom, restoreRoom } = useChatStore();
+  const { rooms, roomsStatus, reloadRooms, isMe, createRoom, deleteRoom } = useChatStore();
   const showToast = useToast();
   const [query, setQuery] = useState("");
   // The room waiting for "are you sure?" (null = no popup).
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
-  const visibleRooms = rooms.filter((room) => matches(room.name, query));
+  // Every time this page opens, ask the server again: someone else may have made a new room.
+  useEffect(() => {
+    reloadRooms();
+  }, [reloadRooms]);
 
-  function handleCreate(name: string) {
-    const problem = createRoom(name);
-    if (problem) return problem;
+  // Newest rooms first, then filtered by the search box.
+  const visibleRooms = [...rooms]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .filter((room) => matches(room.name, query));
+
+  async function handleCreate(name: string) {
+    const problem = await createRoom(name); // on the real server
+    if (problem) return problem; // e.g. "A room with that name already exists." → shown in the box
     setQuery("");
     showToast({ message: `Room #${name} created` });
   }
 
-  function handleDelete(room: Room) {
-    // Remember the room, its messages and its place in the list, so "Undo" can put it back.
-    const index = rooms.findIndex((r) => r.id === room.id);
-    const messages = roomMessages[String(room.id)] ?? [];
-    deleteRoom(room.id);
+  async function handleDelete(room: Room) {
     setRoomToDelete(null);
-    showToast({
-      message: `Room #${room.name} deleted`,
-      actionLabel: "Undo",
-      onAction: () => restoreRoom(room, messages, index),
-    });
+    try {
+      await deleteRoom(room.id); // on the real server
+      showToast({ message: `Room #${room.name} deleted` });
+    } catch (error) {
+      // e.g. 403 "Only the room's creator can delete it."
+      showToast({ message: error instanceof ApiError ? error.message : "Couldn't delete the room. Try again." });
+    }
+  }
+
+  /** "Created by you · 5 minutes ago" */
+  function createdText(room: Room) {
+    const who = !room.created_by
+      ? "a guest who has left" // the creator was deleted after 24h without activity
+      : isMe(room.created_by)
+        ? "you"
+        : `@${room.created_by}`;
+    return `Created by ${who} · ${timeAgo(room.created_at)}`;
   }
 
   return (
@@ -53,6 +71,7 @@ export default function RoomsPage() {
             prefix="#"
             placeholder="Room name"
             submitLabel="Create room"
+            busyLabel="Creating…"
             onSubmit={handleCreate}
           />
         }
@@ -69,39 +88,46 @@ export default function RoomsPage() {
           />
         )}
 
-        {rooms.length === 0 ? (
+        {roomsStatus === "loading" ? (
+          <StateView title="Loading rooms…" />
+        ) : roomsStatus === "error" ? (
+          <StateView
+            title="Couldn't load rooms"
+            description="Check your internet connection and try again."
+            action={
+              <Button variant="secondary" onClick={() => reloadRooms()}>
+                Try again
+              </Button>
+            }
+          />
+        ) : rooms.length === 0 ? (
           <StateView title="No rooms yet" description="Create the first one with “+ Create”." />
         ) : visibleRooms.length === 0 ? (
           <StateView title="No rooms found" description={`No room name contains “${query.trim()}”.`} />
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {visibleRooms.map((room) => {
-              const mine = room.created_by === me;
-              // Last message you can see (blocked users' messages are hidden).
-              const last = (roomMessages[String(room.id)] ?? []).filter((m) => !isBlocked(m.sender)).at(-1);
-              return (
-                <ListRow
-                  key={room.id}
-                  href={`/chat/rooms/${room.id}`}
-                  icon={<RoomsIcon className="size-5" />}
-                  title={room.name}
-                  subtitle={last ? preview(last, me, true) : mine ? "Created by you · no messages yet" : "No messages yet"}
-                  meta={last ? shortWhen(last) : undefined}
-                  // Only the person who created a room can delete it.
-                  action={
-                    mine && (
-                      <button
-                        type="button"
-                        onClick={() => setRoomToDelete(room)}
-                        className="rounded-lg px-2.5 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
-                      >
-                        Delete
-                      </button>
-                    )
-                  }
-                />
-              );
-            })}
+            {visibleRooms.map((room) => (
+              <ListRow
+                key={room.id}
+                href={`/chat/rooms/${room.id}`}
+                icon={<RoomsIcon className="size-5" />}
+                title={room.name}
+                subtitle={createdText(room)}
+                // Only the person who created a room can delete it.
+                action={
+                  room.created_by &&
+                  isMe(room.created_by) && (
+                    <button
+                      type="button"
+                      onClick={() => setRoomToDelete(room)}
+                      className="rounded-lg px-2.5 py-1.5 text-sm text-red-500 hover:bg-red-500/10"
+                    >
+                      Delete
+                    </button>
+                  )
+                }
+              />
+            ))}
           </ul>
         )}
       </div>
@@ -109,7 +135,7 @@ export default function RoomsPage() {
       {roomToDelete && (
         <ConfirmDialog
           title={`Delete #${roomToDelete.name}?`}
-          message="The room and all of its messages will be deleted for everyone."
+          message="The room and all of its messages will be deleted for everyone. This can't be undone."
           confirmLabel="Delete room"
           onConfirm={() => handleDelete(roomToDelete)}
           onCancel={() => setRoomToDelete(null)}

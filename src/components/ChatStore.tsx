@@ -10,6 +10,13 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import {
+  ApiError,
+  createRoom as apiCreateRoom,
+  deleteRoom as apiDeleteRoom,
+  getRooms,
+  type Room,
+} from "@/lib/api";
 import { readSessionName } from "@/lib/session";
 import {
   BLOCKED_USERS,
@@ -17,7 +24,6 @@ import {
   DEMO_REPLIES,
   DM_MESSAGES,
   ME,
-  ROOMS,
   ROOM_MESSAGES,
   UNREAD,
   type Message,
@@ -31,15 +37,21 @@ import {
  * When the API is wired up, these functions will call the server instead.
  */
 
-export type Room = { id: number; name: string; created_by: string };
 type BlockedUser = { username: string; blocked_at: string };
+
+/** Where the rooms list is: still loading, loaded, or failed to load (with no list to show). */
+export type LoadStatus = "loading" | "ready" | "error";
 
 type ChatStore = {
   /** Who "you" are inside the data (messages with this sender show as "You"). */
   me: string;
   /** The name you logged in with, for showing on screen (null for a moment while the page loads). */
   myName: string | null;
+  /** All rooms, from the real API. */
   rooms: Room[];
+  roomsStatus: LoadStatus;
+  /** Ask the server for the rooms list again. */
+  reloadRooms: () => Promise<void>;
   roomMessages: Record<string, Message[]>;
   dmMessages: Record<string, Message[]>;
   blocked: BlockedUser[];
@@ -48,10 +60,10 @@ type ChatStore = {
   /** Is this username you? (works for both your data id and your login name) */
   isMe: (username: string) => boolean;
   unreadTotal: number;
-  /** Returns an error message, or nothing if it worked. */
-  createRoom: (name: string) => string | void;
-  deleteRoom: (id: number) => void;
-  restoreRoom: (room: Room, messages: Message[], index: number) => void;
+  /** Creates the room on the server. Gives back an error message, or nothing if it worked. */
+  createRoom: (name: string) => Promise<string | void>;
+  /** Deletes the room on the server. Throws an ApiError if the server says no (e.g. 403). */
+  deleteRoom: (id: number) => Promise<void>;
   sendToRoom: (roomId: string, body: string) => void;
   sendDm: (username: string, body: string) => void;
   block: (username: string) => void;
@@ -81,8 +93,29 @@ function addDm(all: Record<string, Message[]>, username: string, sender: string,
 const subscribeToNothing = () => () => {};
 
 export function ChatStoreProvider({ children }: { children: ReactNode }) {
-  const [rooms, setRooms] = useState<Room[]>(ROOMS);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomsStatus, setRoomsStatus] = useState<LoadStatus>("loading");
   const [roomMessages, setRoomMessages] = useState(ROOM_MESSAGES);
+
+  // Get the rooms list from the real API. The state is only changed when the server's
+  // answer arrives (inside .then), never straight away.
+  const reloadRooms = useCallback(
+    () =>
+      getRooms().then(
+        (list) => {
+          setRooms(list);
+          setRoomsStatus("ready");
+        },
+        // Failed: if we already have a list, keep showing it; only show the error screen when there's nothing.
+        () => setRoomsStatus((current) => (current === "ready" ? "ready" : "error")),
+      ),
+    [],
+  );
+
+  // Load the rooms once when the chat part of the app opens.
+  useEffect(() => {
+    reloadRooms();
+  }, [reloadRooms]);
   const [dmMessages, setDmMessages] = useState(DM_MESSAGES);
   const [blocked, setBlocked] = useState<BlockedUser[]>(BLOCKED_USERS);
   const [unread, setUnread] = useState(UNREAD);
@@ -127,6 +160,8 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     me: ME,
     myName,
     rooms,
+    roomsStatus,
+    reloadRooms,
     roomMessages,
     dmMessages,
     blocked,
@@ -137,28 +172,24 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
       .filter(([username]) => !isBlocked(username))
       .reduce((sum, [, count]) => sum + count, 0),
 
-    createRoom(name) {
-      if (rooms.some((room) => room.name.toLowerCase() === name.toLowerCase())) {
-        return `A room called "${name}" already exists.`;
+    async createRoom(name) {
+      try {
+        const room = await apiCreateRoom(name); // the server gives back the new room (with its id)
+        setRooms((current) => [room, ...current.filter((r) => r.id !== room.id)]);
+      } catch (error) {
+        // 409 = a room with that name exists, 400 = empty name: show the server's sentence.
+        return error instanceof ApiError ? error.message : "Couldn't create the room. Try again.";
       }
-      const id = Math.max(0, ...rooms.map((room) => room.id)) + 1;
-      setRooms([{ id, name, created_by: ME }, ...rooms]);
     },
 
-    deleteRoom(id) {
+    async deleteRoom(id) {
+      try {
+        await apiDeleteRoom(id);
+      } catch (error) {
+        // 404 = it was already gone (deleted, or removed after 24h): same result, so carry on.
+        if (!(error instanceof ApiError && error.status === 404)) throw error;
+      }
       setRooms((current) => current.filter((room) => room.id !== id));
-      // Deleting a room deletes its messages too.
-      setRoomMessages((current) => {
-        const rest = { ...current };
-        delete rest[String(id)];
-        return rest;
-      });
-    },
-
-    restoreRoom(room, messages, index) {
-      // Put it back where it was (used by "Undo" after deleting).
-      setRooms((current) => [...current.slice(0, index), room, ...current.slice(index)]);
-      setRoomMessages((current) => ({ ...current, [String(room.id)]: messages }));
     },
 
     sendToRoom(roomId, body) {

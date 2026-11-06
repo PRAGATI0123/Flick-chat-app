@@ -14,13 +14,8 @@ export const ME = "pragati_123";
 export const DEMO_AUTO_REPLY = true;
 export const DEMO_REPLIES = ["👍", "Haha, nice!", "Okay, got it.", "Sure, let's do it!", "Thanks! 🙂"];
 
-export const ROOMS = [
-  { id: 1, name: "General", created_by: "cool_panda_42" },
-  { id: 2, name: "Frontend Devs", created_by: "user_2" },
-  { id: 3, name: "Random", created_by: "user_3" },
-];
-
-// Messages for each room, by room id.
+// Messages for each room, by room id. (Rooms themselves now come from the real API;
+// these sample messages go away in the next step.)
 export const ROOM_MESSAGES: Record<string, Message[]> = {
   "1": [
     { id: 1, sender: "cool_panda_42", body: "hey everyone!", day: "Yesterday", time: "22:40" },

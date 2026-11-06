@@ -10,8 +10,13 @@ const BACK = "/chat/rooms";
 
 /** One room's chat: header + messages (without blocked users) + message box. */
 export function RoomChat({ id }: { id: string }) {
-  const { me, rooms, roomMessages, isBlocked, sendToRoom } = useChatStore();
+  const { me, rooms, roomsStatus, roomMessages, isBlocked, isMe, sendToRoom } = useChatStore();
   const room = rooms.find((r) => String(r.id) === id);
+
+  // The rooms list is still coming from the server (e.g. you opened this link directly).
+  if (!room && roomsStatus === "loading") {
+    return <PageHeader title="Loading…" backHref={BACK} />;
+  }
 
   if (!room) {
     return (
@@ -30,16 +35,19 @@ export function RoomChat({ id }: { id: string }) {
     );
   }
 
+  // Messages are still the sample ones for now (the real ones come in the next step).
   // Messages from blocked users are hidden everywhere.
   const messages = (roomMessages[id] ?? []).filter((m) => !isBlocked(m.sender));
 
+  const creator = !room.created_by
+    ? "a guest who has left"
+    : isMe(room.created_by)
+      ? "you"
+      : `@${room.created_by}`;
+
   return (
     <>
-      <PageHeader
-        title={`# ${room.name}`}
-        description={room.created_by === me ? "Created by you" : `Created by @${room.created_by}`}
-        backHref={BACK}
-      />
+      <PageHeader title={`# ${room.name}`} description={`Created by ${creator}`} backHref={BACK} />
       <ChatView messages={messages} me={me} onSend={(body) => sendToRoom(id, body)} placeholder="Message the room…" />
     </>
   );
