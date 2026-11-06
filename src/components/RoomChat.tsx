@@ -24,7 +24,7 @@ type Status = "loading" | "ready" | "gone" | "error";
 export function RoomChat({ id }: { id: string }) {
   const roomId = Number(id); // the URL gives text ("12"); the API wants a number
   const validId = Number.isInteger(roomId) && roomId > 0;
-  const { myName, rooms, isBlocked, isMe, reloadRooms } = useChatStore();
+  const { myName, rooms, blocked, isBlocked, isMe, reloadRooms } = useChatStore();
   const showToast = useToast();
   const room = rooms.find((r) => r.id === roomId); // for the name in the header
 
@@ -51,10 +51,11 @@ export function RoomChat({ id }: { id: string }) {
     [roomId, reloadRooms],
   );
 
-  // Load when the room opens (and again if you switch to another room).
+  // Load when the room opens, again if you switch to another room, and again when your
+  // blocked list changes: after an unblock the server sends that person's messages again.
   useEffect(() => {
     if (validId) loadMessages();
-  }, [validId, loadMessages]);
+  }, [validId, loadMessages, blocked]);
 
   // POLLING: every 4 seconds, while the room is open and loaded, ask
   // "any messages after the newest one I have?" and add what's new.

@@ -26,7 +26,7 @@ export type DmStatus = "loading" | "ready" | "blocked" | "gone" | "error";
  * `enabled = false` skips all requests (e.g. when the username is you).
  */
 export function useDmChat(username: string, enabled = true) {
-  const { refreshDms } = useChatStore();
+  const { refreshDms, blocked } = useChatStore();
   const showToast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<DmStatus>("loading");
@@ -54,9 +54,11 @@ export function useDmChat(username: string, enabled = true) {
     [username],
   );
 
+  // Load when the chat opens, and again when your blocked list changes
+  // (after a block the server answers 403, after an unblock the messages come back).
   useEffect(() => {
     if (enabled) load();
-  }, [enabled, load]);
+  }, [enabled, load, blocked]);
 
   // POLLING: every 4 seconds, ask for messages after the newest one we have.
   async function checkForNewMessages() {

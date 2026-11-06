@@ -10,14 +10,12 @@ import { useChatStore } from "./ChatStore";
 import { BlockConfirmDialog } from "./ConfirmDialog";
 import { PageHeader } from "./PageHeader";
 import { StateView } from "./StateView";
-import { useToast } from "./Toast";
 
 const BACK = "/chat/directMsg";
 
 /** A direct-message chat with one person (the full page), from the real API. */
 export function DmChat({ username }: { username: string }) {
-  const { myName, isBlocked, isMe, block, unblock } = useChatStore();
-  const showToast = useToast();
+  const { myName, isBlocked, isMe, block } = useChatStore();
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
   const itsYou = isMe(username);
@@ -111,9 +109,8 @@ export function DmChat({ username }: { username: string }) {
         <BlockConfirmDialog
           username={username}
           onConfirm={() => {
-            block(username);
             setConfirmingBlock(false);
-            showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
+            block(username); // on the server; shows "@name blocked · Undo" (or what went wrong)
           }}
           onCancel={() => setConfirmingBlock(false)}
         />

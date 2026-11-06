@@ -11,7 +11,6 @@ import { ChatView } from "./ChatView";
 import { useChatStore } from "./ChatStore";
 import { BlockedIcon, CloseIcon, MessagesIcon } from "./icons";
 import { StateView } from "./StateView";
-import { useToast } from "./Toast";
 
 /** What the card is showing right now. */
 type Mode = "menu" | "confirmBlock" | "dm";
@@ -173,13 +172,11 @@ function MenuView({
 
 /** "Are you sure?" for blocking, shown inside the same card. */
 function ConfirmBlockView({ username, onClose }: { username: string; onClose: () => void }) {
-  const { block, unblock } = useChatStore();
-  const showToast = useToast();
+  const { block } = useChatStore();
 
   function confirm() {
-    block(username);
     onClose();
-    showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
+    block(username); // on the server; shows "@name blocked · Undo" (or what went wrong)
   }
 
   return (

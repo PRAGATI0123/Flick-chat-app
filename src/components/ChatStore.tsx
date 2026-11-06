@@ -13,24 +13,27 @@ import {
 import { usePolling } from "@/hooks/usePolling";
 import {
   ApiError,
+  blockUser,
   createRoom as apiCreateRoom,
   deleteRoom as apiDeleteRoom,
+  getBlockedUsers,
   getDmConversations,
   getDmMessages,
   getRooms,
+  unblockUser,
+  type BlockedUser,
   type DmConversation,
   type Room,
 } from "@/lib/api";
 import { readSessionName } from "@/lib/session";
-import { BLOCKED_USERS, ME } from "@/lib/sample-data";
+import { ME } from "@/lib/sample-data";
+import { useToast } from "./Toast";
 
 /**
  * One shared place for the chat data every page needs: the rooms list, your DM
  * conversations with their unread counts, and who you blocked.
  * (A room's or a DM's own messages live in that chat's screen instead.)
  */
-
-type BlockedUser = { username: string; blocked_at: string };
 
 /** Where a list is: still loading, loaded, or failed to load (with no list to show). */
 export type LoadStatus = "loading" | "ready" | "error";
@@ -66,21 +69,21 @@ type ChatStore = {
   /** Whose DM is on screen right now (null = none), so their new messages don't count as unread. */
   setActiveDm: (username: string | null) => void;
 
+  /** People you blocked, from the real API. */
   blocked: BlockedUser[];
+  blockedStatus: LoadStatus;
+  reloadBlocked: () => Promise<void>;
   isBlocked: (username: string) => boolean;
-  block: (username: string) => void;
-  unblock: (username: string) => void;
+  /** Blocks on the server, then shows "@name blocked · Undo" (or what went wrong). */
+  block: (username: string) => Promise<void>;
+  /** Unblocks on the server, then shows "@name unblocked · Undo" (or what went wrong). */
+  unblock: (username: string) => Promise<void>;
 };
 
 const ChatStoreContext = createContext<ChatStore | null>(null);
 
 /** How often the DM list and unread counts are refreshed, on every chat page. */
 const DMS_POLL_MS = 8000;
-
-/** Current time as "HH:MM". */
-function nowTime() {
-  return new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
 
 /** An API time ("2026-11-06T10:15:00Z") as a number, so two times can be compared. */
 const toMs = (iso: string) => Date.parse(iso);
@@ -210,10 +213,64 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     [myName],
   );
 
-  // ─── Blocking (still sample data; becomes real in the next step) ──────────
-  const [blocked, setBlocked] = useState<BlockedUser[]>(BLOCKED_USERS);
+  // ─── Blocking ─────────────────────────────────────────────────────────────
+  const showToast = useToast();
+  const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+  const [blockedStatus, setBlockedStatus] = useState<LoadStatus>("loading");
+
+  // Get your blocked list from the real API (only changes state when the answer arrives).
+  const reloadBlocked = useCallback(
+    () =>
+      getBlockedUsers().then(
+        (list) => {
+          setBlocked(list);
+          setBlockedStatus("ready");
+        },
+        () => setBlockedStatus((current) => (current === "ready" ? "ready" : "error")),
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    reloadBlocked();
+  }, [reloadBlocked]);
+
   const isBlocked = (username: string) => blocked.some((b) => b.username === username);
   const isMe = (username: string) => username === ME || username === myName;
+
+  /** What went wrong, as a sentence for a toast. */
+  const problem = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
+
+  // Block on the server. Their messages disappear from your rooms and DMs (the server hides
+  // them; the app also hides them right away). "Undo" unblocks again.
+  async function block(username: string) {
+    try {
+      const entry = await blockUser(username);
+      setBlocked((current) => [...current.filter((b) => b.username !== username), entry]);
+    } catch (error) {
+      // 422 = that's you, 404 = no such user
+      showToast({ message: problem(error, `Couldn't block @${username}. Try again.`) });
+      return;
+    }
+    refreshDms(); // their conversation leaves your DM list
+    showToast({ message: `@${username} blocked`, actionLabel: "Undo", onAction: () => unblock(username) });
+  }
+
+  // Unblock on the server. Their old and new messages show up again. "Undo" blocks again.
+  async function unblock(username: string) {
+    try {
+      await unblockUser(username);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) {
+        showToast({ message: problem(error, `Couldn't unblock @${username}. Try again.`) });
+        return;
+      }
+      // 404 = they weren't blocked (anymore): same result, carry on.
+    }
+    setBlocked((current) => current.filter((b) => b.username !== username));
+    refreshDms(); // their conversation comes back to your DM list
+    showToast({ message: `@${username} unblocked`, actionLabel: "Undo", onAction: () => block(username) });
+  }
 
   const store: ChatStore = {
     me: ME,
@@ -255,18 +312,11 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     setActiveDm,
 
     blocked,
+    blockedStatus,
+    reloadBlocked,
     isBlocked,
-    block(username) {
-      // Check inside the update, so it also works when called later (e.g. from "Undo").
-      setBlocked((current) =>
-        current.some((b) => b.username === username)
-          ? current
-          : [...current, { username, blocked_at: `Today, ${nowTime()}` }],
-      );
-    },
-    unblock(username) {
-      setBlocked((current) => current.filter((b) => b.username !== username));
-    },
+    block,
+    unblock,
   };
 
   return <ChatStoreContext value={store}>{children}</ChatStoreContext>;

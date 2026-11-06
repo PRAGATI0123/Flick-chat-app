@@ -1,10 +1,8 @@
-// The last bits of placeholder data. Rooms, room messages and DMs now come from the
-// real API; the blocked list follows in the next step, and then this file goes away.
+// The last bits of placeholder code. All chat data (rooms, messages, DMs, blocks) now
+// comes from the real API; the next step moves these two out and deletes this file.
 
 /** What a chat bubble needs (made from a server message by toChatMessage in format.ts). */
 export type Message = { id: number; sender: string; body: string; day: string; time: string };
 
-// Inside the remaining sample data, this name is "you".
+// The old placeholder "you". No real data uses it anymore.
 export const ME = "pragati_123";
-
-export const BLOCKED_USERS = [{ username: "user_4", blocked_at: "Today, 08:00" }];
