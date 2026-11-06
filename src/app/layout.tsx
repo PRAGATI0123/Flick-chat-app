@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Guest Chat",
+  title: "Flick",
   description: "Pick a username and start chatting. No accounts, no passwords.",
 };
 
