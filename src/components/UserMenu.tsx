@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDmChat } from "@/hooks/useDmChat";
+import { toChatMessage } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { ChatView } from "./ChatView";
-import { useChatStore, useReadingDm } from "./ChatStore";
+import { useChatStore } from "./ChatStore";
 import { BlockedIcon, CloseIcon, MessagesIcon } from "./icons";
+import { StateView } from "./StateView";
 import { useToast } from "./Toast";
 
 /** What the card is showing right now. */
@@ -200,10 +203,9 @@ function ConfirmBlockView({ username, onClose }: { username: string; onClose: ()
 
 /** A small chat with the person, right where you clicked; you stay in the room. */
 function DmView({ username, onClose }: { username: string; onClose: () => void }) {
-  const { me, dmMessages, sendDm } = useChatStore();
-
-  // While the mini chat is open, it counts as read (replies won't add to the badge).
-  useReadingDm(username);
+  const { myName } = useChatStore();
+  // Real messages + polling + send for this person (also marks the chat as read while open).
+  const { messages, status, send, retry } = useDmChat(username);
 
   return (
     <>
@@ -226,15 +228,32 @@ function DmView({ username, onClose }: { username: string; onClose: () => void }
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col bg-background">
-        <ChatView
-          messages={dmMessages[username] ?? []}
-          me={me}
-          onSend={(body) => sendDm(username, body)}
-          placeholder={`Message @${username}…`}
-          dmWith={username}
-          userMenu={false}
-          autoFocus
-        />
+        {status === "ready" ? (
+          <ChatView
+            messages={messages.map(toChatMessage)}
+            me={myName ?? ""}
+            onSend={send}
+            placeholder={`Message @${username}…`}
+            dmWith={username}
+            userMenu={false}
+            autoFocus
+          />
+        ) : status === "loading" ? (
+          <StateView title="Loading messages…" />
+        ) : status === "blocked" ? (
+          <StateView title="Not available" description="One of you has blocked the other." />
+        ) : status === "gone" ? (
+          <StateView title={`@${username} isn't here anymore`} description="Guests are removed after 24 hours without activity." />
+        ) : (
+          <StateView
+            title="Couldn't load messages"
+            action={
+              <Button variant="secondary" onClick={() => retry()}>
+                Try again
+              </Button>
+            }
+          />
+        )}
       </div>
     </>
   );

@@ -31,17 +31,6 @@ export function toChatMessage(message: ApiMessage): Message {
   };
 }
 
-/** Short time for lists: "10:25" for today, otherwise the day ("Yesterday"). */
-export function shortWhen(message: Message) {
-  return message.day === "Today" ? message.time : message.day;
-}
-
-/** "You: hi" for your own message, "@user_3: hi" (or just "hi" in a DM) for others. */
-export function preview(message: Message, me: string, showSender: boolean) {
-  if (message.sender === me) return `You: ${message.body}`;
-  return showSender ? `@${message.sender}: ${message.body}` : message.body;
-}
-
 /**
  * Adds new messages to a list: skips ones already there (same id) and keeps the list
  * in time order. Gives back the SAME list when nothing is new, so React doesn't re-render.

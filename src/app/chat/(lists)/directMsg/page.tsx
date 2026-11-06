@@ -1,24 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/Button";
 import { useChatStore } from "@/components/ChatStore";
 import { MessagesIcon } from "@/components/icons";
 import { Input } from "@/components/Input";
 import { ListRow } from "@/components/ListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { StateView } from "@/components/StateView";
-import { matches, preview, shortWhen } from "@/lib/format";
+import { matches, timeAgo } from "@/lib/format";
 
 export default function DirectMessagesPage() {
-  const { me, dmMessages, unread, isBlocked } = useChatStore();
+  const { conversations, dmStatus, refreshDms, unread, isBlocked, isMe } = useChatStore();
   const [query, setQuery] = useState("");
 
-  // One row per person you've chatted with, newest first. Blocked people are left out.
-  const conversations = Object.entries(dmMessages)
-    .filter(([username, messages]) => messages.length > 0 && username !== me && !isBlocked(username))
-    .map(([username, messages]) => ({ username, last: messages[messages.length - 1] }));
+  // Ask the server again whenever this page opens. (The list also refreshes every few
+  // seconds on every chat page, for the unread badge.)
+  useEffect(() => {
+    refreshDms();
+  }, [refreshDms]);
 
-  const visible = conversations.filter(({ username }) => matches(username, query.replace(/^@/, "")));
+  // The server already sends them most recent first and leaves out blocked people.
+  const visible = conversations
+    .filter(({ username }) => !isBlocked(username))
+    .filter(({ username }) => matches(username, query.replace(/^@/, "")));
 
   return (
     <>
@@ -39,7 +44,19 @@ export default function DirectMessagesPage() {
           />
         )}
 
-        {conversations.length === 0 ? (
+        {dmStatus === "loading" ? (
+          <StateView title="Loading conversations…" />
+        ) : dmStatus === "error" ? (
+          <StateView
+            title="Couldn't load conversations"
+            description="Check your internet connection and try again."
+            action={
+              <Button variant="secondary" onClick={() => refreshDms()}>
+                Try again
+              </Button>
+            }
+          />
+        ) : conversations.length === 0 ? (
           <StateView
             title="No conversations yet"
             description="To start one, click someone's name in a room and choose “Direct message”."
@@ -48,13 +65,14 @@ export default function DirectMessagesPage() {
           <StateView title="No conversations found" description={`No username contains “${query.trim()}”.`} />
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {visible.map(({ username, last }) => (
+            {visible.map(({ username, last_message }) => (
               <ListRow
                 key={username}
                 href={`/chat/directMsg/${username}`}
                 title={`@${username}`}
-                subtitle={preview(last, me, false)}
-                meta={shortWhen(last)}
+                // Your own last message starts with "You:"
+                subtitle={`${isMe(last_message.sender) ? "You: " : ""}${last_message.body}`}
+                meta={timeAgo(last_message.created_at)}
                 badge={unread[username]}
               />
             ))}

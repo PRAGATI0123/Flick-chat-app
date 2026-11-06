@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useDmChat } from "@/hooks/useDmChat";
+import { toChatMessage } from "@/lib/format";
 import { Button } from "./Button";
 import { ChatView } from "./ChatView";
-import { useChatStore, useReadingDm } from "./ChatStore";
+import { useChatStore } from "./ChatStore";
 import { BlockConfirmDialog } from "./ConfirmDialog";
 import { PageHeader } from "./PageHeader";
 import { StateView } from "./StateView";
@@ -12,16 +14,17 @@ import { useToast } from "./Toast";
 
 const BACK = "/chat/directMsg";
 
-/** A direct-message chat with one person (the full page). */
+/** A direct-message chat with one person (the full page), from the real API. */
 export function DmChat({ username }: { username: string }) {
-  const { me, dmMessages, isBlocked, isMe, sendDm, block, unblock } = useChatStore();
+  const { myName, isBlocked, isMe, block, unblock } = useChatStore();
   const showToast = useToast();
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
-  // While this chat is on screen, its messages count as read (no unread badge).
-  useReadingDm(username);
+  const itsYou = isMe(username);
+  // Messages + polling + send for this person (skipped when it's you).
+  const { messages, status, send, retry } = useDmChat(username, !itsYou);
 
-  if (isMe(username)) {
+  if (itsYou) {
     return (
       <>
         <PageHeader title="That's you!" backHref={BACK} />
@@ -30,42 +33,79 @@ export function DmChat({ username }: { username: string }) {
     );
   }
 
-  if (isBlocked(username)) {
-    return (
-      <>
-        <PageHeader title={`Chat with @${username}`} backHref={BACK} />
-        <StateView
-          title="This conversation is not available"
-          description={`You blocked @${username}. Unblock them to see this chat again.`}
-          action={
+  const header = (withBlockButton: boolean) => (
+    <PageHeader
+      title={`Chat with @${username}`}
+      description="Direct message"
+      backHref={BACK}
+      action={
+        withBlockButton && (
+          <Button variant="secondary" onClick={() => setConfirmingBlock(true)}>
+            Block
+          </Button>
+        )
+      }
+    />
+  );
+
+  let body;
+  if (isBlocked(username) || status === "blocked") {
+    // 403 from the server: one of you blocked the other, so the whole chat is hidden.
+    body = (
+      <StateView
+        title="This conversation is not available"
+        description={
+          isBlocked(username)
+            ? `You blocked @${username}. Unblock them to see this chat again.`
+            : "One of you has blocked the other."
+        }
+        action={
+          isBlocked(username) && (
             <Link href="/chat/block" className="text-sm font-medium text-accent hover:underline">
               Go to Blocked users
             </Link>
-          }
-        />
-      </>
+          )
+        }
+      />
+    );
+  } else if (status === "gone") {
+    // 404 from the server: no such user (guests are deleted after 24h without activity).
+    body = (
+      <StateView
+        title={`@${username} isn't here anymore`}
+        description="Guests are removed after 24 hours without activity."
+      />
+    );
+  } else if (status === "loading") {
+    body = <StateView title="Loading messages…" />;
+  } else if (status === "error") {
+    body = (
+      <StateView
+        title="Couldn't load messages"
+        description="Check your internet connection and try again."
+        action={
+          <Button variant="secondary" onClick={() => retry()}>
+            Try again
+          </Button>
+        }
+      />
+    );
+  } else {
+    body = (
+      <ChatView
+        messages={messages.map(toChatMessage)}
+        me={myName ?? ""}
+        onSend={send}
+        placeholder={`Message @${username}…`}
+        dmWith={username}
+      />
     );
   }
 
   return (
     <>
-      <PageHeader
-        title={`Chat with @${username}`}
-        description="Direct message"
-        backHref={BACK}
-        action={
-          <Button variant="secondary" onClick={() => setConfirmingBlock(true)}>
-            Block
-          </Button>
-        }
-      />
-      <ChatView
-        messages={dmMessages[username] ?? []}
-        me={me}
-        onSend={(body) => sendDm(username, body)}
-        placeholder={`Message @${username}…`}
-        dmWith={username}
-      />
+      {header(status === "ready" && !isBlocked(username))}
+      {body}
 
       {confirmingBlock && (
         <BlockConfirmDialog
