@@ -1,12 +1,12 @@
 "use client";
 
-import type { Message } from "@/lib/sample-data";
+import type { ChatMessage } from "@/lib/format";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { StateView } from "./StateView";
 
 type ChatViewProps = {
-  messages: Message[];
+  messages: ChatMessage[];
   me: string;
   onSend: (body: string) => void;
   placeholder?: string;

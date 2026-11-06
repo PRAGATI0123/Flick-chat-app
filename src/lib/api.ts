@@ -1,11 +1,3 @@
-// The app's "phone book" for the chat API: one small function per thing the app can ask for.
-// Pages call these (e.g. getRooms()) instead of writing fetch() themselves.
-//
-// Every function talks to OUR middleman at /api/… (src/app/api), which adds the hidden
-// login token and forwards the request to the real chat API. So this file runs in the
-// browser and never sees the token.
-
-// ─── What the API sends back (the shapes from the spec, §4) ──────────────────
 
 export type User = {
   username: string;

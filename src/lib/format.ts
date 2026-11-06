@@ -1,5 +1,7 @@
 import type { Message as ApiMessage } from "./api";
-import type { Message } from "./sample-data";
+
+/** What a chat bubble needs (made from a server message by toChatMessage below). */
+export type ChatMessage = { id: number; sender: string; body: string; day: string; time: string };
 
 /** "Today", "Yesterday", or a date like "6 Nov" (with the year if it's not this year). */
 function dayLabel(date: Date) {
@@ -20,7 +22,7 @@ function dayLabel(date: Date) {
  * The server's time ("2026-11-06T10:15:00Z", always UTC) becomes your local day + "HH:MM".
  * Call it in the browser only (it uses your time zone and today's date).
  */
-export function toChatMessage(message: ApiMessage): Message {
+export function toChatMessage(message: ApiMessage): ChatMessage {
   const date = new Date(message.created_at);
   return {
     id: message.id,

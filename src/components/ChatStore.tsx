@@ -26,7 +26,6 @@ import {
   type Room,
 } from "@/lib/api";
 import { readSessionName } from "@/lib/session";
-import { ME } from "@/lib/sample-data";
 import { useToast } from "./Toast";
 
 /**
@@ -39,8 +38,6 @@ import { useToast } from "./Toast";
 export type LoadStatus = "loading" | "ready" | "error";
 
 type ChatStore = {
-  /** Who "you" are inside the remaining sample data (blocked list). */
-  me: string;
   /** The name you logged in with (null for a moment while the page loads). */
   myName: string | null;
   /** Is this username you? */
@@ -236,7 +233,7 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
   }, [reloadBlocked]);
 
   const isBlocked = (username: string) => blocked.some((b) => b.username === username);
-  const isMe = (username: string) => username === ME || username === myName;
+  const isMe = (username: string) => username === myName;
 
   /** What went wrong, as a sentence for a toast. */
   const problem = (error: unknown, fallback: string) => (error instanceof ApiError ? error.message : fallback);
@@ -273,7 +270,6 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
   }
 
   const store: ChatStore = {
-    me: ME,
     myName,
     isMe,
 

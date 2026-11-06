@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { Message } from "@/lib/sample-data";
+import type { ChatMessage } from "@/lib/format";
 import { MessageBox } from "./MessageBox";
 import { UserMenu } from "./UserMenu";
 
@@ -9,7 +9,7 @@ import { UserMenu } from "./UserMenu";
 const BOTTOM_SLACK = 80;
 
 type MessageListProps = {
-  messages: Message[];
+  messages: ChatMessage[];
   me: string;
   /** In a DM, the other person: their menu won't offer "Direct message" (you're already in it). */
   dmWith?: string;
