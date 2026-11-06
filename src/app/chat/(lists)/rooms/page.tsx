@@ -13,6 +13,10 @@ import { StateView } from "@/components/StateView";
 import { useToast } from "@/components/Toast";
 import { ApiError, type Room } from "@/lib/api";
 import { matches, timeAgo } from "@/lib/format";
+import { usePolling } from "@/hooks/usePolling";
+
+/** How often the rooms list is refreshed while you look at it. */
+const ROOMS_POLL_MS = 15_000;
 
 export default function RoomsPage() {
   const { rooms, roomsStatus, reloadRooms, isMe, createRoom, deleteRoom } = useChatStore();
@@ -25,6 +29,11 @@ export default function RoomsPage() {
   useEffect(() => {
     reloadRooms();
   }, [reloadRooms]);
+
+  // POLLING: while you're on this page, refresh the list every 15 seconds, so rooms made
+  // (or deleted) by other people show up without reloading. Rooms change less often than
+  // messages, so this can be slower than the chat's 4 seconds.
+  usePolling(reloadRooms, ROOMS_POLL_MS);
 
   // Newest rooms first, then filtered by the search box.
   const visibleRooms = [...rooms]

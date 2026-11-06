@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, getRoomMessages, sendRoomMessage, type Message } from "@/lib/api";
-import { toChatMessage } from "@/lib/format";
+import { mergeMessages, pollAfter, toChatMessage } from "@/lib/format";
+import { usePolling } from "@/hooks/usePolling";
 import { Button } from "./Button";
 import { ChatView } from "./ChatView";
 import { useChatStore } from "./ChatStore";
@@ -12,6 +13,9 @@ import { StateView } from "./StateView";
 import { useToast } from "./Toast";
 
 const BACK = "/chat/rooms";
+
+/** How often an open room asks the server for new messages (spec: 3–5 seconds). */
+const POLL_MS = 4000;
 
 /** Where this room's messages are: loading, loaded, room gone (404), or failed. */
 type Status = "loading" | "ready" | "gone" | "error";
@@ -52,11 +56,27 @@ export function RoomChat({ id }: { id: string }) {
     if (validId) loadMessages();
   }, [validId, loadMessages]);
 
+  // POLLING: every 4 seconds, while the room is open and loaded, ask
+  // "any messages after the newest one I have?" and add what's new.
+  async function checkForNewMessages() {
+    try {
+      const fresh = await getRoomMessages(roomId, pollAfter(messages));
+      setMessages((current) => mergeMessages(current, fresh));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setStatus("gone"); // the room disappeared while you were in it
+        reloadRooms();
+      }
+      // Any other problem (e.g. internet blip): stay quiet and try again next time.
+    }
+  }
+  usePolling(checkForNewMessages, POLL_MS, status === "ready");
+
   async function send(body: string) {
     try {
       const sent = await sendRoomMessage(roomId, body); // saved on the server
-      // Add the server's copy (it has the real id and time). Skip it if it's already there.
-      setMessages((current) => (current.some((m) => m.id === sent.id) ? current : [...current, sent]));
+      // Add the server's copy (it has the real id and time). Polling may bring it too: no doubles.
+      setMessages((current) => mergeMessages(current, [sent]));
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setStatus("gone");

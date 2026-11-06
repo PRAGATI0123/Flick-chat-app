@@ -42,6 +42,28 @@ export function preview(message: Message, me: string, showSender: boolean) {
   return showSender ? `@${message.sender}: ${message.body}` : message.body;
 }
 
+/**
+ * Adds new messages to a list: skips ones already there (same id) and keeps the list
+ * in time order. Gives back the SAME list when nothing is new, so React doesn't re-render.
+ */
+export function mergeMessages(current: ApiMessage[], incoming: ApiMessage[]): ApiMessage[] {
+  const known = new Set(current.map((m) => m.id));
+  const fresh = incoming.filter((m) => !known.has(m.id));
+  if (fresh.length === 0) return current;
+  return [...current, ...fresh].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+}
+
+/**
+ * The "after" time for polling: the newest message's time, 1 second earlier.
+ * (Two messages can share the same second; asking a bit early and skipping the ones we
+ * already have makes sure none is missed.) No messages yet → undefined = "send the latest".
+ */
+export function pollAfter(messages: ApiMessage[]): string | undefined {
+  const newest = messages.at(-1);
+  if (!newest) return undefined;
+  return new Date(new Date(newest.created_at).getTime() - 1000).toISOString();
+}
+
 const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 /**
