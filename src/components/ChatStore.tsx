@@ -162,6 +162,10 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
           setConversations(list);
           setDmStatus("ready");
 
+          // Right after the page loads your name isn't known yet, so neither is what you've
+          // already read: counting now would mark everything unread. Wait for the next run.
+          if (!myName) return;
+
           const readAt = loadReadAt(myName);
           const counts: Record<string, number> = {};
           await Promise.all(
