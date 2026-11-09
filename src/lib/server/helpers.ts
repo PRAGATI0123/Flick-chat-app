@@ -1,7 +1,7 @@
 // Small helpers for our server routes in src/app/api (the "middleman" between the browser
 // and the real chat API). Server only: the browser never sees the token.
 import "server-only";
-import { API_BASE_URL } from "./config";
+import { getApiBaseUrl } from "./config";
 
 /** Name of the cookie that holds the secret login token from the real API. */
 export const TOKEN_COOKIE = "chat_token";
@@ -17,7 +17,8 @@ export const TOKEN_COOKIE_OPTIONS = {
 
 /** Full address on the real API, e.g. apiUrl("rooms/12/messages", "?after=…"). */
 export function apiUrl(path: string, search = ""): URL {
-  const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
+  const baseUrl = getApiBaseUrl();
+  const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const url = new URL(path, base);
   url.search = search;
   return url;

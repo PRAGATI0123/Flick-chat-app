@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ username }),
       cache: "no-store",
     });
-  } catch {
+  } catch (error) {
+    console.error(error); // e.g. the API is down, or CHAT_API_BASE_URL is missing
     return errorResponse(502, "API_UNREACHABLE", "Can't reach the chat server. Try again in a moment.");
   }
 

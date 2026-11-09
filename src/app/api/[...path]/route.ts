@@ -6,7 +6,7 @@ import { SESSION_COOKIE } from "@/lib/session";
  * The "middleman" for every API call from the browser.
  *
  *   browser asks:  /api/rooms/12/messages?after=…
- *   we ask:        https://your-chat-api.example.com/api/rooms/12/messages?after=…
+ *   we ask:        <CHAT_API_BASE_URL>/rooms/12/messages?after=…
  *                  with "Authorization: Bearer <token>" taken from the hidden cookie
  *   and send the real API's answer back unchanged.
  *
@@ -46,8 +46,9 @@ async function forward(request: NextRequest, ctx: RouteContext<"/api/[...path]">
       body: body || undefined,
       cache: "no-store", // always fresh: chats change all the time
     });
-  } catch {
-    // The real API is down or the internet is off.
+  } catch (error) {
+    // The real API is down, the internet is off, or CHAT_API_BASE_URL is missing.
+    console.error(error);
     return errorResponse(502, "API_UNREACHABLE", "Can't reach the chat server. Try again in a moment.");
   }
 
