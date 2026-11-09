@@ -30,6 +30,7 @@ export function ActionPopover({
   onSubmit,
 }: ActionPopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +76,16 @@ export function ActionPopover({
       onBlur={(event) => !containerRef.current?.contains(event.relatedTarget) && close()}
       onKeyDown={(event) => event.key === "Escape" && close()}
     >
-      {/* Click always opens (hover may have opened it already, so a toggle would close it again). */}
-      <Button onClick={() => setOpen(true)} aria-expanded={open}>
+      {/* Click always opens (hover may have opened it already, so a toggle would close it again)
+          and puts the cursor in the box, ready to type. (Hover doesn't: then moving the mouse
+          away couldn't close it.) setTimeout: wait until the box is on screen. */}
+      <Button
+        onClick={() => {
+          setOpen(true);
+          setTimeout(() => inputRef.current?.focus());
+        }}
+        aria-expanded={open}
+      >
         {label}
       </Button>
 
@@ -88,6 +97,7 @@ export function ActionPopover({
             className="flex w-72 flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-lg"
           >
             <Input
+              ref={inputRef}
               prefix={prefix}
               placeholder={placeholder}
               autoComplete="off"

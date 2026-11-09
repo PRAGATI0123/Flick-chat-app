@@ -6,7 +6,8 @@ import { Input } from "./Input";
 
 type ComposerProps = {
   placeholder?: string;
-  onSend: (body: string) => void;
+  /** Sends the message. Return (or resolve to) false if it didn't go: the text comes back. */
+  onSend: (body: string) => boolean | void | Promise<boolean | void>;
   /** Put the cursor in the box straight away (used by the mini chat). */
   autoFocus?: boolean;
 };
@@ -14,12 +15,15 @@ type ComposerProps = {
 export function Composer({ placeholder = "Write a message…", onSend, autoFocus }: ComposerProps) {
   const [text, setText] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); // stop the browser from reloading the page
     const body = text.trim();
     if (!body) return;
-    onSend(body);
-    setText("");
+    setText(""); // empty the box straight away, so it feels instant
+    const sent = await onSend(body);
+    // Didn't go (e.g. no internet): put the text back so it isn't lost,
+    // unless you've already started typing something new.
+    if (sent === false) setText((current) => current || body);
   }
 
   return (

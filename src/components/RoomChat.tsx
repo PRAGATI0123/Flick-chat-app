@@ -73,11 +73,13 @@ export function RoomChat({ id }: { id: string }) {
   }
   usePolling(checkForNewMessages, POLL_MS, status === "ready");
 
+  /** Sends the message. Gives back false if it didn't go (the message box then keeps the text). */
   async function send(body: string) {
     try {
       const sent = await sendRoomMessage(roomId, body); // saved on the server
       // Add the server's copy (it has the real id and time). Polling may bring it too: no doubles.
       setMessages((current) => mergeMessages(current, [sent]));
+      return true;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setStatus("gone");
@@ -87,6 +89,7 @@ export function RoomChat({ id }: { id: string }) {
           message: `Message not sent: ${error instanceof ApiError ? error.message : "please try again."}`,
         });
       }
+      return false;
     }
   }
 

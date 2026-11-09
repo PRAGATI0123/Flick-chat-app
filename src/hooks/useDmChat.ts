@@ -72,11 +72,13 @@ export function useDmChat(username: string, enabled = true) {
   }
   usePolling(checkForNewMessages, POLL_MS, enabled && status === "ready");
 
+  /** Sends the message. Gives back false if it didn't go (the message box then keeps the text). */
   async function send(body: string) {
     try {
       const sent = await sendDm(username, body); // saved on the server
       setMessages((current) => mergeMessages(current, [sent]));
       refreshDms(); // update the DM list (this conversation moves to the top)
+      return true;
     } catch (error) {
       const next = statusFromError(error);
       if (next === "blocked" || next === "gone") {
@@ -86,6 +88,7 @@ export function useDmChat(username: string, enabled = true) {
           message: `Message not sent: ${error instanceof ApiError ? error.message : "please try again."}`,
         });
       }
+      return false;
     }
   }
 

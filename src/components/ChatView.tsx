@@ -8,7 +8,7 @@ import { StateView } from "./StateView";
 type ChatViewProps = {
   messages: ChatMessage[];
   me: string;
-  onSend: (body: string) => void;
+  onSend: (body: string) => boolean | void | Promise<boolean | void>;
   placeholder?: string;
   /** In a DM, the other person's username (see MessageList). */
   dmWith?: string;
